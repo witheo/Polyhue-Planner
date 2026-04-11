@@ -4,7 +4,7 @@ import { MIN_TASK_DURATION_MINUTES } from './durations';
  * Pixel height for a 15-minute task — backlog and lane scale linearly from here (30 min → 2×).
  * Lane time scale is derived so block height still matches duration on the grid.
  */
-export const BACKLOG_TICKET_MIN_HEIGHT_PX = 56;
+export const BACKLOG_TICKET_MIN_HEIGHT_PX = 48;
 
 /** One visible hour on the Today lane (px). Must stay in sync with lane CSS `--ph-lane-hour`. */
 export const LANE_PIXELS_PER_MINUTE = BACKLOG_TICKET_MIN_HEIGHT_PX / MIN_TASK_DURATION_MINUTES;

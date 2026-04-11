@@ -46,6 +46,6 @@ describe('TICKET_SUBTASKS_VISIBLE_MIN_PX', () => {
 
 describe('BACKLOG_TICKET_MIN_HEIGHT_PX', () => {
   it('is the 15-minute ticket height (padding + badge row) used to derive lane scale', () => {
-    expect(BACKLOG_TICKET_MIN_HEIGHT_PX).toBe(56);
+    expect(BACKLOG_TICKET_MIN_HEIGHT_PX).toBe(48);
   });
 });

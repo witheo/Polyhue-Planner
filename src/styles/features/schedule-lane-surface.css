@@ -146,8 +146,8 @@
   border-radius: 0;
   border: 1px solid var(--ph-border);
   overflow: hidden;
-  /* Fallback only: ScheduleLane sets this from laneLayout (56px per 15 min → 224px/h). */
-  --ph-lane-hour: 224px;
+  /* Fallback only: ScheduleLane sets this from laneLayout (48px per 15 min → 192px/h). */
+  --ph-lane-hour: 192px;
   background: repeating-linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.02),
