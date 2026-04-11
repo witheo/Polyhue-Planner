@@ -166,6 +166,21 @@ button {
   outline-offset: 1px;
 }
 
+.ph-input--inline {
+  width: 4.25rem;
+  padding: 4px 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ph-card__duration-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ph-muted);
+  font-size: inherit;
+}
+
 .ph-btn {
   border-radius: 10px;
   border: 1px solid var(--ph-border);

@@ -11,6 +11,7 @@ export function Backlog() {
   const tasks = usePlannerStore((s) => s.tasks.filter((t) => t.status === 'backlog'));
   const addTask = usePlannerStore((s) => s.addTask);
   const removeTask = usePlannerStore((s) => s.removeTask);
+  const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
 
   const { setNodeRef, isOver } = useDroppable({ id: BACKLOG_DROP_ID });
 
@@ -57,7 +58,12 @@ export function Backlog() {
       <ul className="ph-backlog__list">
         {tasks.map((task) => (
           <li key={task.id} className="ph-backlog__item">
-            <TaskCard task={task} variant="backlog" onRemove={() => removeTask(task.id)} />
+            <TaskCard
+              task={task}
+              variant="backlog"
+              onDurationChange={(m) => updateTaskDuration(task.id, m)}
+              onRemove={() => removeTask(task.id)}
+            />
           </li>
         ))}
       </ul>

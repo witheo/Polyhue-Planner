@@ -26,6 +26,7 @@ Then open the printed local URL (typically `http://localhost:5173`).
 | `npm run build`| Typecheck + production bundle        |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint                               |
+| `npm run test` | Vitest (domain `schedule.ts` tests)  |
 
 ## Persistence
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { resolveDropStart } from '../domain/schedule';
+import { placementValid, resolveDropStart } from '../domain/schedule';
 import type { ScheduledBlock, Task, TaskId } from '../domain/types';
 import { MINUTES_IN_DAY } from '../domain/time';
 import { debounce, load, save } from './persistence';
@@ -61,9 +61,34 @@ export const usePlannerStore = create<Store>((set, get) => ({
 
   updateTaskDuration: (id, durationMinutes) => {
     const next = Math.max(5, Math.round(durationMinutes));
-    set((s) => ({
-      tasks: s.tasks.map((t) => (t.id === id ? { ...t, durationMinutes: next } : t)),
-    }));
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === id);
+      if (!task || task.durationMinutes === next) return s;
+
+      const updatedTask: Task = { ...task, durationMinutes: next };
+      const blockIdx = s.blocks.findIndex((b) => b.taskId === id);
+      if (blockIdx === -1) {
+        return { tasks: s.tasks.map((t) => (t.id === id ? updatedTask : t)) };
+      }
+
+      const tasks = s.tasks.map((t) => (t.id === id ? updatedTask : t));
+      const map = taskMap(tasks);
+      const blocks = [...s.blocks];
+      const block = blocks[blockIdx]!;
+
+      if (placementValid(updatedTask, block.startMinuteOfDay, blocks, map, id)) {
+        return { tasks, blocks };
+      }
+
+      const newStart = resolveDropStart(updatedTask, block.startMinuteOfDay, blocks, map, {
+        snapStep: 15,
+        excludeTaskId: id,
+      });
+      if (newStart === null) return s;
+
+      blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart };
+      return { tasks, blocks };
+    });
   },
 
   removeTask: (id) => {

@@ -17,6 +17,7 @@ export function ScheduleLane() {
   const tasks = usePlannerStore((s) => s.tasks);
   const blocks = usePlannerStore((s) => s.blocks);
   const removeTask = usePlannerStore((s) => s.removeTask);
+  const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
 
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
 
@@ -68,6 +69,7 @@ export function ScheduleLane() {
                     left: 0,
                     right: 0,
                   }}
+                  onDurationChange={(m) => updateTaskDuration(task.id, m)}
                   onRemove={() => removeTask(task.id)}
                 />
               );

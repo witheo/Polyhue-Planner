@@ -10,15 +10,16 @@ type Props = {
   variant: 'backlog' | 'lane';
   laneStyle?: CSSProperties;
   onRemove?: () => void;
+  onDurationChange?: (minutes: number) => void;
 };
 
-export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
+export function TaskCard({ task, variant, laneStyle, onRemove, onDurationChange }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: draggableTaskId(task.id),
     data: { taskId: task.id },
   });
 
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     ...(variant === 'lane' ? laneStyle : {}),
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.55 : 1,
@@ -35,7 +36,29 @@ export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
     >
       <div className="ph-card__body">
         <div className="ph-card__title">{task.title}</div>
-        <div className="ph-card__meta">{task.durationMinutes} min</div>
+        <div className="ph-card__meta">
+          {onDurationChange ? (
+            <label className="ph-card__duration-label" htmlFor={`duration-${task.id}`}>
+              <span className="ph-sr-only">Duration in minutes</span>
+              <input
+                id={`duration-${task.id}`}
+                className="ph-input ph-input--inline"
+                type="number"
+                min={5}
+                step={5}
+                value={task.durationMinutes}
+                onPointerDown={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n)) onDurationChange(n);
+                }}
+              />
+              <span aria-hidden> min</span>
+            </label>
+          ) : (
+            <>{task.durationMinutes} min</>
+          )}
+        </div>
       </div>
       {onRemove ? (
         <button
