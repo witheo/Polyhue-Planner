@@ -2,6 +2,18 @@ const MINUTES_PER_DAY = 24 * 60;
 
 export const MINUTES_IN_DAY = MINUTES_PER_DAY;
 
+/** First minute shown in the Today lane (5:00 AM). */
+export const SCHEDULE_VIEW_START_MINUTE = 5 * 60;
+
+/**
+ * Exclusive end of the visible lane (midnight). The last full hour row is 11 PM–12 AM.
+ * Span = 19 hours (5 AM … 11:59 PM) so the lane is shorter than 24h and minutes appear larger.
+ */
+export const SCHEDULE_VIEW_END_EXCLUSIVE_MINUTE = 24 * 60;
+
+export const SCHEDULE_VIEW_SPAN_MINUTES =
+  SCHEDULE_VIEW_END_EXCLUSIVE_MINUTE - SCHEDULE_VIEW_START_MINUTE;
+
 export function clampMinuteOfDay(m: number): number {
   return Math.max(0, Math.min(MINUTES_PER_DAY, Math.round(m)));
 }

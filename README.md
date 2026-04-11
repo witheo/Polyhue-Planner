@@ -26,7 +26,7 @@ Then open the printed local URL (typically `http://localhost:5173`).
 | `npm run build`| Typecheck + production bundle        |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint                               |
-| `npm run test` | Vitest (domain `schedule.ts` tests)  |
+| `npm run test` | Vitest (`schedule.ts`, `laneLayout.ts`, …) |
 
 ## Persistence
 
@@ -35,6 +35,11 @@ Plans are saved under the `localStorage` key `polyhue-planner.v1` as JSON:
 `{ "tasks": Task[], "blocks": ScheduledBlock[] }`
 
 Saves are debounced (~250ms) after each change.
+
+## Tasks and duration
+
+- Minimum task length is **15 minutes** (matches the 15-minute snap grid). Older saved tasks below that are **clamped up** on load.
+- Backlog and lane cards share the same **height-from-duration** scale (`src/domain/laneLayout.ts`).
 
 ## License
 

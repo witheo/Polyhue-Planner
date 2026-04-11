@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { usePlannerStore } from '../state/store';
 import { DurationPicker } from './DurationPicker';
@@ -8,7 +8,8 @@ import { TaskCard } from './TaskCard';
 export const BACKLOG_DROP_ID = 'backlog';
 
 export function Backlog() {
-  const tasks = usePlannerStore((s) => s.tasks.filter((t) => t.status === 'backlog'));
+  const allTasks = usePlannerStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.status === 'backlog'), [allTasks]);
   const addTask = usePlannerStore((s) => s.addTask);
   const removeTask = usePlannerStore((s) => s.removeTask);
   const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
@@ -26,7 +27,10 @@ export function Backlog() {
     >
       <header className="ph-panel__header">
         <h2 className="ph-panel__title">Backlog</h2>
-        <p className="ph-panel__hint">Drag tickets onto today’s lane. Drop here to unschedule.</p>
+        <p className="ph-panel__hint">
+          Drag tickets onto today’s lane. Drop here to unschedule. Minimum duration 15 minutes; card
+          height matches the calendar scale.
+        </p>
       </header>
 
       <form

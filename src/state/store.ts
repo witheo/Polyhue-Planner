@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 
+import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
 import { placementValid, resolveDropStart } from '../domain/schedule';
 import type { ScheduledBlock, Task, TaskId } from '../domain/types';
-import { MINUTES_IN_DAY } from '../domain/time';
+import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domain/time';
 import { debounce, load, save } from './persistence';
 
 const PALETTE = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#D191FF', '#6C63FF'];
@@ -19,9 +20,42 @@ function taskMap(tasks: Task[]): Map<TaskId, Task> {
   return new Map(tasks.map((t) => [t.id, t]));
 }
 
+function computeResolvedScheduleStart(
+  taskId: TaskId,
+  clientY: number,
+  laneContentRect: DOMRect,
+  tasks: Task[],
+  blocks: ScheduledBlock[],
+): number | null {
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  const relativeY = clientY - laneContentRect.top;
+  const clampedY = Math.max(0, Math.min(laneContentRect.height, relativeY));
+  const rawStart =
+    SCHEDULE_VIEW_START_MINUTE +
+    (clampedY / laneContentRect.height) * SCHEDULE_VIEW_SPAN_MINUTES;
+  const map = taskMap(tasks);
+  return resolveDropStart(task, rawStart, blocks, map, {
+    snapStep: 15,
+    excludeTaskId: taskId,
+  });
+}
+
+function clampTaskDurations(tasks: Task[]): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    durationMinutes: Math.max(
+      MIN_TASK_DURATION_MINUTES,
+      Math.round(t.durationMinutes),
+    ),
+  }));
+}
+
 const initial = load();
 const initialTasks = initial?.tasks?.length
-  ? reconcileTasks(initial.tasks as Task[], (initial.blocks as ScheduledBlock[]) ?? [])
+  ? clampTaskDurations(
+      reconcileTasks(initial.tasks as Task[], (initial.blocks as ScheduledBlock[]) ?? []),
+    )
   : [];
 const initialBlocks = (initial?.blocks as ScheduledBlock[]) ?? [];
 
@@ -33,6 +67,12 @@ type Store = {
   removeTask: (id: TaskId) => void;
   /** Drop onto schedule lane using pointer Y and lane DOM rect (content box). */
   dropOnSchedule: (taskId: TaskId, clientY: number, laneContentRect: DOMRect) => void;
+  /** Resolved snapped start for UI preview; same rules as drop without mutating. */
+  previewScheduleDrop: (
+    taskId: TaskId,
+    clientY: number,
+    laneContentRect: DOMRect,
+  ) => number | null;
   returnToBacklog: (taskId: TaskId) => void;
 };
 
@@ -51,7 +91,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
     const task: Task = {
       id,
       title: trimmed,
-      durationMinutes: Math.max(5, Math.round(durationMinutes)),
+      durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes)),
       color: nextColor,
       status: 'backlog',
       createdAt: new Date().toISOString(),
@@ -60,7 +100,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
   },
 
   updateTaskDuration: (id, durationMinutes) => {
-    const next = Math.max(5, Math.round(durationMinutes));
+    const next = Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes));
     set((s) => {
       const task = s.tasks.find((t) => t.id === id);
       if (!task || task.durationMinutes === next) return s;
@@ -100,18 +140,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
 
   dropOnSchedule: (taskId, clientY, laneContentRect) => {
     const { tasks, blocks } = get();
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-
-    const relativeY = clientY - laneContentRect.top;
-    const clampedY = Math.max(0, Math.min(laneContentRect.height, relativeY));
-    const rawStart = (clampedY / laneContentRect.height) * MINUTES_IN_DAY;
-
-    const map = taskMap(tasks);
-    const start = resolveDropStart(task, rawStart, blocks, map, {
-      snapStep: 15,
-      excludeTaskId: taskId,
-    });
+    const start = computeResolvedScheduleStart(taskId, clientY, laneContentRect, tasks, blocks);
     if (start === null) return;
 
     const nextBlocks = blocks.filter((b) => b.taskId !== taskId);
@@ -121,6 +150,11 @@ export const usePlannerStore = create<Store>((set, get) => ({
       blocks: nextBlocks,
       tasks: reconcileTasks(tasks, nextBlocks),
     });
+  },
+
+  previewScheduleDrop: (taskId, clientY, laneContentRect) => {
+    const { tasks, blocks } = get();
+    return computeResolvedScheduleStart(taskId, clientY, laneContentRect, tasks, blocks);
   },
 
   returnToBacklog: (taskId) => {
