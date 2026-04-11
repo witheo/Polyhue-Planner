@@ -5,6 +5,7 @@
 @import './features/backlog-drop.css';
 @import './features/schedule-lane-drops.css';
 @import './features/backlog.css';
+@import './features/brain-dump-import.css';
 @import './features/task-detail.css';
 @import './features/task-card.css';
 @import './features/schedule-lane-surface.css';

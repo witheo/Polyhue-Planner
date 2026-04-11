@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 
 import { minutesFromDurationInput } from '../domain/durations';
 import { usePlannerStore } from '../state/store';
+import { BrainDumpImportDialog } from './BrainDumpImportDialog';
 import { DurationPicker } from './DurationPicker';
 import { TaskCard } from './TaskCard';
 
@@ -17,6 +18,7 @@ export function Backlog() {
 
   const [title, setTitle] = useState('');
   const [durationInput, setDurationInput] = useState('30');
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
 
   return (
     <section
@@ -57,7 +59,16 @@ export function Backlog() {
         <button type="submit" className="ph-btn ph-btn--primary">
           Add
         </button>
+        <button
+          type="button"
+          className="ph-btn"
+          onClick={() => setBrainDumpOpen(true)}
+        >
+          Import from text…
+        </button>
       </form>
+
+      <BrainDumpImportDialog open={brainDumpOpen} onClose={() => setBrainDumpOpen(false)} />
 
       <ul className="ph-backlog__list">
         {tasks.map((task) => (

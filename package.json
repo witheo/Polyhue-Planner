@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "brain-dump-proxy": "node scripts/brain-dump-proxy.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
