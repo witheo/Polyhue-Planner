@@ -1,8 +1,9 @@
-import { DURATION_STEP_MINUTES, MIN_TASK_DURATION_MINUTES } from '../domain/durations';
+import { MIN_TASK_DURATION_MINUTES, sanitizeDurationDigits } from '../domain/durations';
 
 type Props = {
-  value: number;
-  onChange: (minutes: number) => void;
+  /** Raw digits shown in the field (may be "" while editing). */
+  value: string;
+  onChange: (next: string) => void;
   id?: string;
 };
 
@@ -13,14 +14,12 @@ export function DurationPicker({ value, onChange, id }: Props) {
       <input
         id={id}
         className="ph-input"
-        type="number"
-        min={MIN_TASK_DURATION_MINUTES}
-        step={DURATION_STEP_MINUTES}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
         value={value}
-        onChange={(e) => {
-          const n = Number(e.target.value);
-          onChange(Number.isFinite(n) ? n : MIN_TASK_DURATION_MINUTES);
-        }}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => onChange(sanitizeDurationDigits(e.target.value))}
       />
     </label>
   );

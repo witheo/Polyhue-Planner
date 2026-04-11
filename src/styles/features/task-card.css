@@ -1,0 +1,294 @@
+.ph-card {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--ph-border);
+  background: #12151f;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  touch-action: none;
+}
+
+.ph-card--lane {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.ph-card--drag-overlay {
+  position: relative;
+  min-width: 220px;
+  max-width: min(320px, 92vw);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  touch-action: none;
+}
+
+/* --- Ticket cards (backlog, lane, drag overlay): `container-name: ticket` for layout + title clamp. --- */
+.ph-card--ticket {
+  container-type: size;
+  container-name: ticket;
+  position: relative;
+  cursor: grab;
+  padding: 8px 8px 8px 10px;
+}
+
+.ph-card__ticket-stack {
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Default: one row. Lane uses a hidden × in `actions` so `body` width matches backlog. */
+.ph-card__ticket-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  column-gap: 6px;
+  row-gap: 4px;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'badge body actions';
+}
+
+.ph-card__ticket-badge-slot {
+  grid-area: badge;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Empty cell until stacked layout; pairs with `TICKET_TWO_ROW_LAYOUT_MIN_PX` in laneLayout.ts. */
+.ph-card__ticket-meta-slot {
+  display: none;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ph-card__ticket-grid .ph-card__body {
+  grid-area: body;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ph-card__ticket-grid .ph-card__actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.ph-card__ticket-remove-sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ph-card__ticket-remove-sizer:disabled {
+  opacity: 1;
+  cursor: inherit;
+}
+
+/* ticket inner height ≥ TICKET_TWO_ROW_LAYOUT_MIN_PX: header row (badge | meta) + title row; 2-line title. */
+@container ticket (min-height: 52px) {
+  .ph-card__ticket-grid {
+    align-items: start;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'badge meta meta'
+      'body body actions';
+  }
+
+  .ph-card__ticket-meta-slot {
+    display: block;
+    grid-area: meta;
+  }
+
+  .ph-card__ticket-grid .ph-card__body {
+    align-self: stretch;
+  }
+
+  .ph-card__ticket-grid .ph-card__actions {
+    align-self: start;
+  }
+
+  .ph-card__title--ticket {
+    -webkit-line-clamp: 2;
+    line-height: 1.45;
+    max-height: calc(1.45em * 2);
+  }
+}
+
+@container ticket (max-height: 40px) {
+  .ph-card--lane.ph-card--ticket {
+    padding: 2px 6px 2px 8px;
+  }
+}
+
+@container ticket (max-height: 28px) {
+  .ph-card__accent-badge--compact {
+    width: 12px;
+    height: 12px;
+    border-width: 1px;
+  }
+}
+
+.ph-card--ticket:active {
+  cursor: grabbing;
+}
+
+.ph-card--ticket .ph-card__title-link,
+.ph-card--ticket .ph-icon-btn {
+  cursor: pointer;
+}
+
+/* Drag overlay span: full cell width so line-clamp wraps predictably. */
+.ph-card__ticket-grid .ph-card__title-link--static {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.ph-card__ticket-grid button.ph-card__title-link {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.ph-card__accent-badge {
+  pointer-events: none;
+  box-sizing: border-box;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #12151f;
+  border: 2px solid transparent;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
+}
+
+.ph-card__accent-badge-icon {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ph-card__accent-badge--compact {
+  width: 14px;
+  height: 14px;
+  border-width: 1px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.ph-card--ticket .ph-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ph-card--ticket .ph-card__body > .ph-card__title-link--static {
+  flex: 0 1 auto;
+  align-self: stretch;
+}
+
+.ph-card--ticket .ph-card__body > button.ph-card__title-link {
+  flex: 0 1 auto;
+  align-self: start;
+}
+
+/* Line clamp + typography; 1rem / 400 so ticket titles read closer to body copy than panel headings. */
+.ph-card__title--ticket {
+  font-size: 1rem;
+  font-weight: 400;
+  font-family: var(--ph-font-sans);
+  letter-spacing: normal;
+  overflow: hidden;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-height: 1.45;
+  word-break: break-word;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+button.ph-card__title-link {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  vertical-align: top;
+  text-align: left;
+  cursor: pointer;
+  color: rgba(248, 249, 255, 0.94);
+  text-decoration: none;
+}
+
+/* Native `button` typography can ignore weaker rules; beat `button, input { font: inherit }` + UA form styles. */
+button.ph-card__title--ticket.ph-card__title-link {
+  appearance: none;
+  -webkit-appearance: none;
+  font: 400 1rem/1.45 var(--ph-font-sans);
+  letter-spacing: normal;
+  vertical-align: top;
+}
+
+button.ph-card__title-link:hover {
+  color: #8b96c4;
+  text-decoration: underline;
+  text-decoration-color: rgba(120, 132, 180, 0.85);
+  text-underline-offset: 3px;
+}
+
+button.ph-card__title-link:focus-visible {
+  outline: 2px solid rgba(108, 99, 255, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.ph-card__title-link--static {
+  display: -webkit-box;
+  color: rgba(248, 249, 255, 0.94);
+  text-decoration: none;
+}
+
+.ph-icon-btn--ticket {
+  padding: 0 4px;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+@container ticket (max-height: 36px) {
+  .ph-icon-btn--ticket {
+    padding: 0 2px;
+    font-size: 0.95rem;
+  }
+}
+
+.ph-icon-btn {
+  align-self: center;
+  border: none;
+  background: transparent;
+  color: var(--ph-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.ph-icon-btn:hover {
+  color: var(--ph-text);
+  background: rgba(255, 255, 255, 0.06);
+}

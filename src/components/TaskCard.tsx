@@ -3,86 +3,106 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CSSProperties } from 'react';
 
 import { draggableTaskId } from '../dndIds';
-import { DURATION_STEP_MINUTES, MIN_TASK_DURATION_MINUTES } from '../domain/durations';
 import { laneCardHeightPx } from '../domain/laneLayout';
+import { badgeRingForTask, badgeSidesForTask } from '../domain/taskBadge';
 import type { Task } from '../domain/types';
+import { usePlannerStore } from '../state/store';
+
+import { TicketBadgeFace } from './TaskCardAccentGrid';
 
 type Props = {
   task: Task;
   variant: 'backlog' | 'lane';
   laneStyle?: CSSProperties;
   onRemove?: () => void;
-  onDurationChange?: (minutes: number) => void;
 };
 
-export function TaskCard({ task, variant, laneStyle, onRemove, onDurationChange }: Props) {
+const ACCENT_BORDER = '6px';
+
+export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
+  const openTaskDetail = usePlannerStore((s) => s.openTaskDetail);
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: draggableTaskId(task.id),
     data: { taskId: task.id },
   });
 
-  const compact = task.durationMinutes <= MIN_TASK_DURATION_MINUTES;
+  const accent = badgeRingForTask(task);
 
   const style: CSSProperties = {
-    ...(variant === 'lane' ? laneStyle : { minHeight: laneCardHeightPx(task.durationMinutes) }),
+    ...(variant === 'lane'
+      ? laneStyle
+      : {
+          height: laneCardHeightPx(task.durationMinutes),
+        }),
     transform: CSS.Translate.toString(transform),
-    /* Source card stays as a faint placeholder; DragOverlay shows the lifted clone. */
     opacity: isDragging ? 0.22 : 1,
-    borderLeft: `4px solid ${task.color ?? 'var(--ph-accent)'}`,
+    borderLeft: `${ACCENT_BORDER} solid ${accent}`,
+    borderTop: `${ACCENT_BORDER} solid ${accent}`,
   };
-
-  const cardClass =
-    (variant === 'backlog' ? 'ph-card ph-card--backlog' : 'ph-card ph-card--lane') +
-    (compact ? ' ph-card--duration-sm' : '');
 
   return (
     <div
       ref={setNodeRef}
-      className={cardClass}
+      className={
+        (variant === 'backlog' ? 'ph-card' : 'ph-card ph-card--lane') +
+        ' ph-card--ticket ph-card__ticket-stack'
+      }
       style={style}
-      {...listeners}
       {...attributes}
+      {...listeners}
+      aria-label={`Drag to move: ${task.title}`}
     >
-      <div className="ph-card__body">
-        <div className="ph-card__title">{task.title}</div>
-        <div className="ph-card__meta">
-          {onDurationChange ? (
-            <label className="ph-card__duration-label" htmlFor={`duration-${task.id}`}>
-              <span className="ph-sr-only">Duration in minutes</span>
-              <input
-                id={`duration-${task.id}`}
-                className="ph-input ph-input--inline"
-                type="number"
-                min={MIN_TASK_DURATION_MINUTES}
-                step={DURATION_STEP_MINUTES}
-                value={task.durationMinutes}
-                onPointerDown={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (Number.isFinite(n)) onDurationChange(n);
-                }}
-              />
-              <span aria-hidden> min</span>
-            </label>
+      <div className="ph-card__ticket-grid">
+        <div className="ph-card__ticket-badge-slot">
+          <TicketBadgeFace
+            compact
+            sides={badgeSidesForTask(task)}
+            ringColor={badgeRingForTask(task)}
+          />
+        </div>
+        <div className="ph-card__ticket-meta-slot" aria-hidden="true" />
+        <div className="ph-card__body">
+          <button
+            type="button"
+            className="ph-card__title--ticket ph-card__title-link"
+            aria-label={`Open details for ${task.title}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              openTaskDetail(task.id);
+            }}
+          >
+            {task.title}
+          </button>
+        </div>
+        <div className="ph-card__actions">
+          {onRemove ? (
+            <button
+              type="button"
+              className="ph-icon-btn ph-icon-btn--ticket"
+              aria-label={`Remove ${task.title}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+            >
+              ×
+            </button>
           ) : (
-            <>{task.durationMinutes} min</>
+            <button
+              type="button"
+              className="ph-icon-btn ph-icon-btn--ticket ph-card__ticket-remove-sizer"
+              tabIndex={-1}
+              disabled
+              aria-hidden
+            >
+              ×
+            </button>
           )}
         </div>
       </div>
-      {onRemove ? (
-        <button
-          type="button"
-          className="ph-icon-btn"
-          aria-label={`Remove ${task.title}`}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        >
-          ×
-        </button>
-      ) : null}
     </div>
   );
 }

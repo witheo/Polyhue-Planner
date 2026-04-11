@@ -7,7 +7,7 @@ Colorful planner that combines a ticket-style backlog with duration-sized cards 
 - [Vite](https://vitejs.dev/) + [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - [Zustand](https://github.com/pmndrs/zustand) for a single client store (`src/state/store.ts`)
 - [@dnd-kit](https://docs.dndkit.com/) for drag-and-drop between backlog and schedule
-- Plain CSS variables in `src/styles/globals.css` (no Tailwind)
+- Plain CSS variables, layered under `src/styles/` with `@import` from `src/styles/globals.css` (no Tailwind)
 
 ## Run locally
 
@@ -39,7 +39,8 @@ Saves are debounced (~250ms) after each change.
 ## Tasks and duration
 
 - Minimum task length is **15 minutes** (matches the 15-minute snap grid). Older saved tasks below that are **clamped up** on load.
-- Backlog and lane cards share the same **height-from-duration** scale (`src/domain/laneLayout.ts`).
+- Backlog and lane cards share the same **height-from-duration** scale (`src/domain/laneLayout.ts`): **1px per minute**, no extra height floor (short tasks are very thin on the lane).
+- **Click the ticket title** (link styling) to open the **right-hand detail flyover** (title, duration, scheduled time, delete). Lane tickets have no inline duration or × — use the panel to edit or remove.
 
 ## License
 

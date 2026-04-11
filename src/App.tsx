@@ -11,10 +11,10 @@ import {
 } from '@dnd-kit/core';
 import { useRef, useState } from 'react';
 
-import { TaskCardDragOverlay } from './components/TaskCardDragOverlay';
-
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
 import { SCHEDULE_LANE_DROP_ID, ScheduleLane } from './components/ScheduleLane';
+import { TaskCardDragOverlay } from './components/TaskCardDragOverlay';
+import { TaskDetailPanel } from './components/TaskDetailPanel';
 import { parseDraggableTaskId } from './dndIds';
 import {
   ScheduleDropPreviewContext,
@@ -25,10 +25,14 @@ import { usePlannerStore } from './state/store';
 
 const SCHEDULE_SELECTOR = '[data-ph-schedule-lane]';
 
-function clientYForScheduleDrop(event: DragMoveEvent, pointer: { x: number; y: number }): number {
+/** Y in viewport used to map onto the lane timeline. Uses the drag item's top edge so long tasks anchor by start time, not by card midpoint. */
+function clientYForScheduleDrop(
+  event: DragMoveEvent | DragEndEvent,
+  pointer: { y: number },
+): number {
   const tr = event.active.rect.current.translated;
   if (tr) {
-    return tr.top + tr.height / 2;
+    return tr.top;
   }
   return pointer.y;
 }
@@ -80,7 +84,7 @@ export default function App() {
           return;
         }
         const rect = el.getBoundingClientRect();
-        const y = clientYForScheduleDrop(event, pointer.current);
+        const y = clientYForScheduleDrop(event, { y: pointer.current.y });
         const start = usePlannerStore.getState().previewScheduleDrop(taskId, y, rect);
         setScheduleDropPreview(
           start !== null ? { taskId, startMinuteOfDay: start } : null,
@@ -106,8 +110,7 @@ export default function App() {
           const el = document.querySelector(SCHEDULE_SELECTOR);
           if (!(el instanceof HTMLElement)) return;
           const rect = el.getBoundingClientRect();
-          const tr = event.active.rect.current.translated;
-          const y = tr ? tr.top + tr.height / 2 : pointer.current.y;
+          const y = clientYForScheduleDrop(event, { y: pointer.current.y });
           usePlannerStore.getState().dropOnSchedule(taskId, y, rect);
         }
       }}
@@ -124,6 +127,7 @@ export default function App() {
             <Backlog />
             <ScheduleLane />
           </main>
+          <TaskDetailPanel />
         </div>
       </ScheduleDropPreviewContext.Provider>
       <DragOverlay

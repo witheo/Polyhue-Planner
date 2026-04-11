@@ -24,8 +24,6 @@ const LANE_HEIGHT_PX = (SCHEDULE_VIEW_SPAN_MINUTES * SCHEDULE_HOUR_HEIGHT_PX) / 
 export function ScheduleLane() {
   const tasks = usePlannerStore((s) => s.tasks);
   const blocks = usePlannerStore((s) => s.blocks);
-  const removeTask = usePlannerStore((s) => s.removeTask);
-  const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
   const dropPreview = useScheduleDropPreview();
 
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
@@ -109,8 +107,6 @@ export function ScheduleLane() {
                     left: 0,
                     right: 0,
                   }}
-                  onDurationChange={(m) => updateTaskDuration(task.id, m)}
-                  onRemove={() => removeTask(task.id)}
                 />
               );
             })}

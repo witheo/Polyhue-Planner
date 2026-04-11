@@ -1,0 +1,58 @@
+.ph-app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.ph-app__header {
+  margin-bottom: 22px;
+}
+
+.ph-app__title {
+  margin: 0 0 6px;
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+.ph-app__tagline {
+  margin: 0;
+  color: var(--ph-muted);
+  max-width: 52ch;
+}
+
+.ph-app__grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(420px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .ph-app__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ph-panel {
+  background: linear-gradient(180deg, var(--ph-surface) 0%, var(--ph-surface-2) 100%);
+  border: 1px solid var(--ph-border);
+  border-radius: var(--ph-radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.ph-panel__header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--ph-border);
+}
+
+.ph-panel__title {
+  margin: 0 0 6px;
+  /* Explicit stack + metrics so this matches ticket titles (native `h2` / `button` defaults differ by browser). */
+  font: 700 1.05rem/1.45 var(--ph-font-sans);
+}
+
+.ph-panel__hint {
+  margin: 0;
+  color: var(--ph-muted);
+  font-size: 0.88rem;
+}

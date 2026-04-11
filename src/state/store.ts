@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
 import { placementValid, resolveDropStart } from '../domain/schedule';
+import { clampBadgeSides } from '../domain/taskBadge';
 import type { ScheduledBlock, Task, TaskId } from '../domain/types';
 import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domain/time';
 import { debounce, load, save } from './persistence';
@@ -62,10 +63,15 @@ const initialBlocks = (initial?.blocks as ScheduledBlock[]) ?? [];
 type Store = {
   tasks: Task[];
   blocks: ScheduledBlock[];
+  detailTaskId: TaskId | null;
+  openTaskDetail: (id: TaskId) => void;
+  closeTaskDetail: () => void;
   addTask: (input: { title: string; durationMinutes: number; color?: string }) => void;
+  updateTaskTitle: (id: TaskId, title: string) => void;
   updateTaskDuration: (id: TaskId, durationMinutes: number) => void;
+  updateTaskBadge: (id: TaskId, patch: { sides?: number; accent?: string }) => void;
   removeTask: (id: TaskId) => void;
-  /** Drop onto schedule lane using pointer Y and lane DOM rect (content box). */
+  /** Drop onto schedule lane using anchor Y (viewport) and lane DOM rect (content box). */
   dropOnSchedule: (taskId: TaskId, clientY: number, laneContentRect: DOMRect) => void;
   /** Resolved snapped start for UI preview; same rules as drop without mutating. */
   previewScheduleDrop: (
@@ -79,6 +85,14 @@ type Store = {
 export const usePlannerStore = create<Store>((set, get) => ({
   tasks: initialTasks,
   blocks: initialBlocks,
+  detailTaskId: null,
+
+  openTaskDetail: (id) => {
+    if (!get().tasks.some((t) => t.id === id)) return;
+    set({ detailTaskId: id });
+  },
+
+  closeTaskDetail: () => set({ detailTaskId: null }),
 
   addTask: ({ title, durationMinutes, color }) => {
     const trimmed = title.trim();
@@ -93,10 +107,35 @@ export const usePlannerStore = create<Store>((set, get) => ({
       title: trimmed,
       durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes)),
       color: nextColor,
+      badgeSides: 6,
+      badgeAccent: nextColor,
       status: 'backlog',
       createdAt: new Date().toISOString(),
     };
     set((s) => ({ tasks: [...s.tasks, task] }));
+  },
+
+  updateTaskTitle: (id, title) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    set((s) => ({
+      tasks: s.tasks.map((t) => (t.id === id ? { ...t, title: trimmed } : t)),
+    }));
+  },
+
+  updateTaskBadge: (id, patch) => {
+    set((s) => ({
+      tasks: s.tasks.map((t) => {
+        if (t.id !== id) return t;
+        return {
+          ...t,
+          ...(patch.sides !== undefined ? { badgeSides: clampBadgeSides(patch.sides) } : {}),
+          ...(patch.accent !== undefined
+            ? { badgeAccent: patch.accent, color: patch.accent }
+            : {}),
+        };
+      }),
+    }));
   },
 
   updateTaskDuration: (id, durationMinutes) => {
@@ -135,6 +174,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
     set((s) => ({
       tasks: s.tasks.filter((t) => t.id !== id),
       blocks: s.blocks.filter((b) => b.taskId !== id),
+      detailTaskId: s.detailTaskId === id ? null : s.detailTaskId,
     }));
   },
 
