@@ -66,8 +66,14 @@ type Store = {
   detailTaskId: TaskId | null;
   openTaskDetail: (id: TaskId) => void;
   closeTaskDetail: () => void;
-  addTask: (input: { title: string; durationMinutes: number; color?: string }) => void;
+  addTask: (input: {
+    title: string;
+    durationMinutes: number;
+    color?: string;
+    description?: string;
+  }) => void;
   updateTaskTitle: (id: TaskId, title: string) => void;
+  updateTaskDescription: (id: TaskId, description: string) => void;
   updateTaskDuration: (id: TaskId, durationMinutes: number) => void;
   updateTaskBadge: (id: TaskId, patch: { sides?: number; accent?: string }) => void;
   removeTask: (id: TaskId) => void;
@@ -94,7 +100,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
 
   closeTaskDetail: () => set({ detailTaskId: null }),
 
-  addTask: ({ title, durationMinutes, color }) => {
+  addTask: ({ title, durationMinutes, color, description }) => {
     const trimmed = title.trim();
     if (!trimmed) return;
     const id =
@@ -105,6 +111,9 @@ export const usePlannerStore = create<Store>((set, get) => ({
     const task: Task = {
       id,
       title: trimmed,
+      ...(description !== undefined && description !== ''
+        ? { description }
+        : {}),
       durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes)),
       color: nextColor,
       badgeSides: 6,
@@ -120,6 +129,17 @@ export const usePlannerStore = create<Store>((set, get) => ({
     if (!trimmed) return;
     set((s) => ({
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, title: trimmed } : t)),
+    }));
+  },
+
+  updateTaskDescription: (id, description) => {
+    set((s) => ({
+      tasks: s.tasks.map((t) => {
+        if (t.id !== id) return t;
+        if (description === '')
+          return { ...t, description: undefined };
+        return { ...t, description };
+      }),
     }));
   },
 

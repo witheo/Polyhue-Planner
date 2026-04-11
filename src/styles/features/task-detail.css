@@ -52,10 +52,20 @@
   gap: 14px;
 }
 
-.ph-detail-textarea {
-  resize: vertical;
-  min-height: 96px;
+.ph-detail-description {
   line-height: 1.4;
+  min-height: 96px;
+  resize: vertical;
+}
+
+@supports (field-sizing: content) {
+  .ph-detail-description {
+    field-sizing: content;
+    min-height: 4.5lh;
+    max-height: min(60vh, 480px);
+    resize: none;
+    overflow-y: auto;
+  }
 }
 
 .ph-detail-badge-section {

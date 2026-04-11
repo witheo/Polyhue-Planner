@@ -5,6 +5,10 @@ export type TaskStatus = 'backlog' | 'scheduled';
 export type Task = {
   id: TaskId;
   title: string;
+  /**
+   * Plain text for now; stored as-is (leading/trailing space preserved) for future markdown.
+   */
+  description?: string;
   durationMinutes: number;
   /** Ticket L-border accent; kept in sync with `badgeAccent` when set via detail badge swatches. */
   color?: string;

@@ -16,6 +16,7 @@ export function TaskDetailPanel() {
   const detailTaskId = usePlannerStore((s) => s.detailTaskId);
   const closeTaskDetail = usePlannerStore((s) => s.closeTaskDetail);
   const updateTaskTitle = usePlannerStore((s) => s.updateTaskTitle);
+  const updateTaskDescription = usePlannerStore((s) => s.updateTaskDescription);
   const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
   const updateTaskBadge = usePlannerStore((s) => s.updateTaskBadge);
   const removeTask = usePlannerStore((s) => s.removeTask);
@@ -28,15 +29,17 @@ export function TaskDetailPanel() {
   );
 
   const [titleDraft, setTitleDraft] = useState('');
+  const [descriptionDraft, setDescriptionDraft] = useState('');
   const [durationDraft, setDurationDraft] = useState('30');
 
   useEffect(() => {
     if (!task) return;
     setTitleDraft(task.title);
+    setDescriptionDraft(task.description ?? '');
     setDurationDraft(String(task.durationMinutes));
     // Narrow deps so unrelated Zustand task reference churn does not reset drafts mid-edit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- task.id, title, durationMinutes
-  }, [task?.id, task?.durationMinutes, task?.title]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- task.id, title, description, durationMinutes
+  }, [task?.id, task?.durationMinutes, task?.title, task?.description]);
 
   const open = Boolean(detailTaskId && task);
 
@@ -66,6 +69,13 @@ export function TaskDetailPanel() {
     const t = titleDraft.trim();
     if (t) updateTaskTitle(task.id, t);
     else setTitleDraft(task.title);
+  };
+
+  const onSaveDescription = () => {
+    const next = descriptionDraft;
+    const prev = task.description ?? '';
+    if (next === prev) return;
+    updateTaskDescription(task.id, next);
   };
 
   return (
@@ -99,13 +109,26 @@ export function TaskDetailPanel() {
         <div className="ph-detail-panel__body">
           <label className="ph-field ph-field--grow" htmlFor="ph-detail-title-input">
             <span className="ph-field__label">Title</span>
-            <textarea
+            <input
               id="ph-detail-title-input"
-              className="ph-input ph-detail-textarea"
-              rows={4}
+              type="text"
+              className="ph-input"
               value={titleDraft}
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={onSaveTitle}
+            />
+          </label>
+
+          <label className="ph-field ph-field--grow" htmlFor="ph-detail-description-input">
+            <span className="ph-field__label">Description</span>
+            <textarea
+              id="ph-detail-description-input"
+              className="ph-input ph-detail-description"
+              rows={1}
+              placeholder="Notes (markdown later)"
+              value={descriptionDraft}
+              onChange={(e) => setDescriptionDraft(e.target.value)}
+              onBlur={onSaveDescription}
             />
           </label>
 
