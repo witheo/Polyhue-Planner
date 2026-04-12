@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BACKLOG_TICKET_MIN_HEIGHT_PX,
   laneCardHeightPx,
+  TICKET_SUBTASKS_VISIBLE_MIN_PX,
   TICKET_TWO_ROW_LAYOUT_MIN_PX,
 } from './laneLayout';
 
@@ -28,6 +29,18 @@ describe('laneCardHeightPx', () => {
 describe('TICKET_TWO_ROW_LAYOUT_MIN_PX', () => {
   it('matches @container ticket (min-height) for stacked ticket header in task-card.css', () => {
     expect(TICKET_TWO_ROW_LAYOUT_MIN_PX).toBe(52);
+  });
+});
+
+describe('TICKET_SUBTASKS_VISIBLE_MIN_PX', () => {
+  it('matches @container ticket (min-height) for .ph-card__subtasks-wrap in task-card.css', () => {
+    expect(TICKET_SUBTASKS_VISIBLE_MIN_PX).toBe(72);
+  });
+
+  it('stays at or below 30-minute ticket content box so subtasks are not gated off by rounding', () => {
+    const outer = laneCardHeightPx(30);
+    const approxContentBox = outer - 22; /* top border 6 + vertical padding 16 on .ph-card--ticket */
+    expect(TICKET_SUBTASKS_VISIBLE_MIN_PX).toBeLessThanOrEqual(approxContentBox);
   });
 });
 

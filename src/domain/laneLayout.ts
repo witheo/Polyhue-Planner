@@ -18,10 +18,12 @@ export const SCHEDULE_HOUR_HEIGHT_PX = LANE_PIXELS_PER_MINUTE * 60;
 export const TICKET_TWO_ROW_LAYOUT_MIN_PX = 52;
 
 /**
- * Ticket inner height (px) before subtask lines may appear on the card (~24+ min at default scale).
- * Keep in sync with `@container ticket (min-height: …)` for `.ph-card__subtasks-wrap` in task-card.css.
+ * Ticket **content-box** height (px) before subtask lines may appear on the card.
+ * Must stay below the content-box height of a 30-minute ticket (~90px after border + padding) so
+ * rounding/subpixel layout does not hide subtasks on common durations. Keep in sync with
+ * `@container ticket (min-height: …)` for `.ph-card__subtasks-wrap` in task-card.css.
  */
-export const TICKET_SUBTASKS_VISIBLE_MIN_PX = 90;
+export const TICKET_SUBTASKS_VISIBLE_MIN_PX = 72;
 
 /**
  * Pixel height for a task card from its duration — same formula for backlog and schedule lane.

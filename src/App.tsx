@@ -9,6 +9,7 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
@@ -25,23 +26,28 @@ import { usePlannerStore } from './state/store';
 
 const SCHEDULE_SELECTOR = '[data-ph-schedule-lane]';
 
-/** Y in viewport used to map onto the lane timeline. Uses the drag item's top edge so long tasks anchor by start time, not by card midpoint. */
-function clientYForScheduleDrop(
-  event: DragMoveEvent | DragEndEvent,
-  pointer: { y: number },
-): number {
-  const tr = event.active.rect.current.translated;
-  if (tr) {
-    return tr.top;
-  }
-  return pointer.y;
-}
-
 export default function App() {
   const pointer = useRef({ x: 0, y: 0 });
   const cleanupMove = useRef<(() => void) | null>(null);
+  /** Pointer Y minus task-card top at pointer-down; keeps lane math aligned with DragOverlay (avoids stale `active.rect.translated`). */
+  const scheduleGrabOffsetY = useRef<number | null>(null);
   const [scheduleDropPreview, setScheduleDropPreview] = useState<ScheduleDropPreview>(null);
   const [dragOverlayTaskId, setDragOverlayTaskId] = useState<TaskId | null>(null);
+
+  const clientYForScheduleDrop = (event: DragMoveEvent | DragEndEvent, pointerY: number): number => {
+    if (scheduleGrabOffsetY.current === null) {
+      const initial = event.active.rect.current.initial;
+      const ac = getEventCoordinates(event.activatorEvent);
+      if (initial && ac) {
+        scheduleGrabOffsetY.current = ac.y - initial.top;
+      }
+    }
+    if (scheduleGrabOffsetY.current !== null) {
+      return pointerY - scheduleGrabOffsetY.current;
+    }
+    const tr = event.active.rect.current.translated;
+    return tr?.top ?? pointerY;
+  };
 
   const dragOverlayTask = usePlannerStore((s) => {
     if (!dragOverlayTaskId) return null;
@@ -60,8 +66,11 @@ export default function App() {
       sensors={sensors}
       onDragStart={(event: DragStartEvent) => {
         setScheduleDropPreview(null);
+        scheduleGrabOffsetY.current = null;
         const taskId = parseDraggableTaskId(String(event.active.id));
         setDragOverlayTaskId(taskId);
+        const ac = getEventCoordinates(event.activatorEvent);
+        if (ac) pointer.current = { x: ac.x, y: ac.y };
         const onMove = (e: PointerEvent) => {
           pointer.current = { x: e.clientX, y: e.clientY };
         };
@@ -84,7 +93,7 @@ export default function App() {
           return;
         }
         const rect = el.getBoundingClientRect();
-        const y = clientYForScheduleDrop(event, { y: pointer.current.y });
+        const y = clientYForScheduleDrop(event, pointer.current.y);
         const start = usePlannerStore.getState().previewScheduleDrop(taskId, y, rect);
         setScheduleDropPreview(
           start !== null ? { taskId, startMinuteOfDay: start } : null,
@@ -110,7 +119,7 @@ export default function App() {
           const el = document.querySelector(SCHEDULE_SELECTOR);
           if (!(el instanceof HTMLElement)) return;
           const rect = el.getBoundingClientRect();
-          const y = clientYForScheduleDrop(event, { y: pointer.current.y });
+          const y = clientYForScheduleDrop(event, pointer.current.y);
           usePlannerStore.getState().dropOnSchedule(taskId, y, rect);
         }
       }}
