@@ -8,6 +8,8 @@ import {
   badgeSidesForTask,
   regularPolygonPoints,
 } from '../domain/taskBadge';
+import { TASK_CATEGORY_LABEL, TASK_CATEGORY_OPTIONS } from '../domain/taskCategories';
+import type { TaskCategory } from '../domain/types';
 import { usePlannerStore } from '../state/store';
 import { DurationPicker } from './DurationPicker';
 import { TicketBadgeFace } from './TaskCardAccentGrid';
@@ -18,6 +20,7 @@ export function TaskDetailPanel() {
   const updateTaskTitle = usePlannerStore((s) => s.updateTaskTitle);
   const updateTaskDescription = usePlannerStore((s) => s.updateTaskDescription);
   const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
+  const updateTaskCategory = usePlannerStore((s) => s.updateTaskCategory);
   const updateTaskBadge = usePlannerStore((s) => s.updateTaskBadge);
   const removeTask = usePlannerStore((s) => s.removeTask);
 
@@ -38,8 +41,8 @@ export function TaskDetailPanel() {
     setDescriptionDraft(task.description ?? '');
     setDurationDraft(String(task.durationMinutes));
     // Narrow deps so unrelated Zustand task reference churn does not reset drafts mid-edit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- task.id, title, description, durationMinutes
-  }, [task?.id, task?.durationMinutes, task?.title, task?.description]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync drafts when persisted task fields change
+  }, [task?.id, task?.durationMinutes, task?.title, task?.description, task?.subtasks, task?.category]);
 
   const open = Boolean(detailTaskId && task);
 
@@ -131,6 +134,42 @@ export function TaskDetailPanel() {
               onBlur={onSaveDescription}
             />
           </label>
+
+          <label className="ph-field ph-field--grow" htmlFor="ph-detail-category">
+            <span className="ph-field__label">Category</span>
+            <select
+              id="ph-detail-category"
+              className="ph-input"
+              value={task.category ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                updateTaskCategory(task.id, v === '' ? null : (v as TaskCategory));
+              }}
+            >
+              <option value="">Automatic (palette by order)</option>
+              {TASK_CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {TASK_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {task.subtasks && task.subtasks.length > 0 ? (
+            <section className="ph-detail-subtasks" aria-labelledby="ph-detail-subtasks-heading">
+              <h3 className="ph-detail-subtasks__title" id="ph-detail-subtasks-heading">
+                Subtasks
+              </h3>
+              <ol className="ph-detail-subtasks__list">
+                {task.subtasks.map((s, i) => (
+                  <li key={`${i}-${s.label}`} className="ph-detail-subtasks__item">
+                    <span className="ph-detail-subtasks__label">{s.label}</span>
+                    <span className="ph-detail-subtasks__mins">{s.durationMinutes} min</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
 
           <DurationPicker id="ph-detail-duration" value={durationDraft} onChange={onDurationChange} />
 

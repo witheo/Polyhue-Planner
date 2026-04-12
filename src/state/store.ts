@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
 import { placementValid, resolveDropStart } from '../domain/schedule';
 import { clampBadgeSides } from '../domain/taskBadge';
-import type { ScheduledBlock, Task, TaskId } from '../domain/types';
+import { colorForTaskCategory } from '../domain/taskCategories';
+import type { ScheduledBlock, Task, TaskCategory, TaskId } from '../domain/types';
 import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domain/time';
 import { debounce, load, save } from './persistence';
 
@@ -42,6 +43,20 @@ function computeResolvedScheduleStart(
   });
 }
 
+function clampSubtasks(subtasks: Task['subtasks']): Task['subtasks'] {
+  if (!subtasks?.length) return undefined;
+  const next = subtasks
+    .map((s) => ({
+      label: s.label.trim(),
+      durationMinutes: Math.max(
+        MIN_TASK_DURATION_MINUTES,
+        Math.round(s.durationMinutes),
+      ),
+    }))
+    .filter((s) => s.label !== '');
+  return next.length > 0 ? next : undefined;
+}
+
 function clampTaskDurations(tasks: Task[]): Task[] {
   return tasks.map((t) => ({
     ...t,
@@ -49,7 +64,18 @@ function clampTaskDurations(tasks: Task[]): Task[] {
       MIN_TASK_DURATION_MINUTES,
       Math.round(t.durationMinutes),
     ),
+    subtasks: clampSubtasks(t.subtasks),
   }));
+}
+
+function pickColorForNewTask(
+  input: { color?: string; category?: TaskCategory },
+  rotateIndex: number,
+): string {
+  if (input.color) return input.color;
+  const fromCat = colorForTaskCategory(input.category);
+  if (fromCat) return fromCat;
+  return PALETTE[rotateIndex % PALETTE.length];
 }
 
 const initial = load();
@@ -71,10 +97,24 @@ type Store = {
     durationMinutes: number;
     color?: string;
     description?: string;
+    subtasks?: Task['subtasks'];
+    category?: TaskCategory;
   }) => void;
+  /** Append several backlog tasks in one store update (palette indices follow existing task count). */
+  addTasks: (
+    inputs: Array<{
+      title: string;
+      durationMinutes: number;
+      color?: string;
+      description?: string;
+      subtasks?: Task['subtasks'];
+      category?: TaskCategory;
+    }>,
+  ) => void;
   updateTaskTitle: (id: TaskId, title: string) => void;
   updateTaskDescription: (id: TaskId, description: string) => void;
   updateTaskDuration: (id: TaskId, durationMinutes: number) => void;
+  updateTaskCategory: (id: TaskId, category: TaskCategory | null) => void;
   updateTaskBadge: (id: TaskId, patch: { sides?: number; accent?: string }) => void;
   removeTask: (id: TaskId) => void;
   /** Drop onto schedule lane using anchor Y (viewport) and lane DOM rect (content box). */
@@ -100,20 +140,24 @@ export const usePlannerStore = create<Store>((set, get) => ({
 
   closeTaskDetail: () => set({ detailTaskId: null }),
 
-  addTask: ({ title, durationMinutes, color, description }) => {
+  addTask: ({ title, durationMinutes, color, description, subtasks, category }) => {
     const trimmed = title.trim();
     if (!trimmed) return;
     const id =
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : `task-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const nextColor = color ?? PALETTE[get().tasks.length % PALETTE.length];
+    const rotate = get().tasks.length;
+    const nextColor = pickColorForNewTask({ color, category }, rotate);
+    const st = clampSubtasks(subtasks);
     const task: Task = {
       id,
       title: trimmed,
       ...(description !== undefined && description !== ''
         ? { description }
         : {}),
+      ...(st !== undefined ? { subtasks: st } : {}),
+      ...(category !== undefined ? { category } : {}),
       durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes)),
       color: nextColor,
       badgeSides: 6,
@@ -122,6 +166,45 @@ export const usePlannerStore = create<Store>((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     set((s) => ({ tasks: [...s.tasks, task] }));
+  },
+
+  addTasks: (inputs) => {
+    if (inputs.length === 0) return;
+    const startLen = get().tasks.length;
+    const newTasks: Task[] = [];
+    let offset = 0;
+    for (const input of inputs) {
+      const trimmed = input.title.trim();
+      if (!trimmed) continue;
+      const id =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `task-${Date.now()}-${offset}-${Math.random().toString(16).slice(2)}`;
+      offset += 1;
+      const nextColor = pickColorForNewTask(
+        { color: input.color, category: input.category },
+        startLen + newTasks.length,
+      );
+      const st = clampSubtasks(input.subtasks);
+      const task: Task = {
+        id,
+        title: trimmed,
+        ...(input.description !== undefined && input.description !== ''
+          ? { description: input.description }
+          : {}),
+        ...(st !== undefined ? { subtasks: st } : {}),
+        ...(input.category !== undefined ? { category: input.category } : {}),
+        durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(input.durationMinutes)),
+        color: nextColor,
+        badgeSides: 6,
+        badgeAccent: nextColor,
+        status: 'backlog',
+        createdAt: new Date().toISOString(),
+      };
+      newTasks.push(task);
+    }
+    if (newTasks.length === 0) return;
+    set((s) => ({ tasks: [...s.tasks, ...newTasks] }));
   },
 
   updateTaskTitle: (id, title) => {
@@ -139,6 +222,23 @@ export const usePlannerStore = create<Store>((set, get) => ({
         if (description === '')
           return { ...t, description: undefined };
         return { ...t, description };
+      }),
+    }));
+  },
+
+  updateTaskCategory: (id, category) => {
+    set((s) => ({
+      tasks: s.tasks.map((t) => {
+        if (t.id !== id) return t;
+        if (category === null) {
+          const idx = s.tasks.findIndex((x) => x.id === id);
+          const nextColor = PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length];
+          const next: Task = { ...t };
+          delete next.category;
+          return { ...next, color: nextColor, badgeAccent: nextColor };
+        }
+        const col = colorForTaskCategory(category) ?? PALETTE[0];
+        return { ...t, category, color: col, badgeAccent: col };
       }),
     }));
   },

@@ -9,6 +9,7 @@ import type { Task } from '../domain/types';
 import { usePlannerStore } from '../state/store';
 
 import { TicketBadgeFace } from './TaskCardAccentGrid';
+import { TaskTicketSubtasks } from './TaskTicketSubtasks';
 
 type Props = {
   task: Task;
@@ -51,7 +52,11 @@ export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
       style={style}
       {...attributes}
       {...listeners}
-      aria-label={`Drag to move: ${task.title}`}
+      aria-label={
+        task.subtasks?.length
+          ? `Drag to move: ${task.title}. ${task.subtasks.length} subtasks.`
+          : `Drag to move: ${task.title}`
+      }
     >
       <div className="ph-card__ticket-grid">
         <div className="ph-card__ticket-badge-slot">
@@ -75,6 +80,7 @@ export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
           >
             {task.title}
           </button>
+          <TaskTicketSubtasks task={task} />
         </div>
         <div className="ph-card__actions">
           {onRemove ? (

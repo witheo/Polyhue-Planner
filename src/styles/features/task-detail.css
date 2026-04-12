@@ -52,6 +52,44 @@
   gap: 14px;
 }
 
+.ph-detail-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ph-detail-subtasks__title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ph-muted, #9aa3b2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ph-detail-subtasks__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ph-detail-subtasks__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+.ph-detail-subtasks__mins {
+  font-size: 0.85rem;
+  color: var(--ph-muted, #9aa3b2);
+  white-space: nowrap;
+}
+
 .ph-detail-description {
   line-height: 1.4;
   min-height: 96px;

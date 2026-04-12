@@ -195,6 +195,68 @@
   align-items: stretch;
 }
 
+/* Subtasks on ticket face: sync min-height with TICKET_SUBTASKS_VISIBLE_MIN_PX in laneLayout.ts (90). */
+.ph-card__subtasks-wrap {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@container ticket (min-height: 90px) {
+  .ph-card__subtasks-wrap {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.ph-card__subtasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ph-card__subtasks__row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  font-weight: 400;
+  color: rgba(196, 204, 230, 0.82);
+  font-family: var(--ph-font-sans);
+}
+
+.ph-card__subtasks__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ph-card__subtasks__mins {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: rgba(168, 178, 210, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+
 .ph-card--ticket .ph-card__body > .ph-card__title-link--static {
   flex: 0 1 auto;
   align-self: stretch;

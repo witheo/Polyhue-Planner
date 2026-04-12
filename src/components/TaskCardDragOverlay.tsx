@@ -4,6 +4,7 @@ import { laneCardHeightPx } from '../domain/laneLayout';
 import { badgeRingForTask, badgeSidesForTask } from '../domain/taskBadge';
 import type { Task } from '../domain/types';
 
+import { TaskTicketSubtasks } from './TaskTicketSubtasks';
 import { TicketBadgeFace } from './TaskCardAccentGrid';
 
 type Props = {
@@ -38,6 +39,7 @@ export function TaskCardDragOverlay({ task }: Props) {
           <span className="ph-card__title--ticket ph-card__title-link ph-card__title-link--static">
             {task.title}
           </span>
+          <TaskTicketSubtasks task={task} />
         </div>
         <div className="ph-card__actions" aria-hidden>
           <button
