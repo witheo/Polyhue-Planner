@@ -1,12 +1,149 @@
+.ph-lane__header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ph-lane .ph-lane__header-row .ph-panel__title {
+  margin: 0;
+}
+
+.ph-lane__tabs {
+  display: inline-flex;
+  border: 1px solid var(--ph-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ph-lane__tab {
+  margin: 0;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--ph-muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.ph-lane__tab:hover {
+  color: var(--ph-text);
+}
+
+.ph-lane__tab--active {
+  background: rgba(108, 99, 255, 0.22);
+  color: #fff;
+}
+
+.ph-lane__tab:focus-visible {
+  outline: 2px solid rgba(108, 99, 255, 0.65);
+  outline-offset: 2px;
+}
+
+.ph-lane__week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ph-lane__week-nav-label {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+
+.ph-lane__day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ph-lane__nav-btn {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
+.ph-lane__nav-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.ph-lane__day-nav-label {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+}
+
 .ph-lane__scroll {
   max-height: min(72vh, 900px);
   overflow: auto;
   padding: 10px;
 }
 
+/* At least full panel width, or 7×128px day columns + ticks — narrow viewports scroll horizontally. */
+.ph-lane__week {
+  min-width: max(100%, calc(64px + 7 * 128px));
+}
+
+.ph-lane__week--day {
+  min-width: max(100%, calc(64px + 320px));
+}
+
+.ph-lane__week-header,
+.ph-lane__week-body {
+  display: grid;
+  grid-template-columns: 64px repeat(7, minmax(128px, 1fr));
+  align-items: stretch;
+}
+
+.ph-lane__week-header--day,
+.ph-lane__week-body--day {
+  grid-template-columns: 64px minmax(320px, 1fr);
+}
+
+.ph-lane__day-head--single {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.ph-lane__week-corner {
+  border-bottom: 1px solid transparent;
+}
+
+.ph-lane__day-head {
+  padding: 8px 6px 10px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ph-muted);
+  line-height: 1.25;
+  border-bottom: 1px solid var(--ph-border);
+}
+
+.ph-lane__ticks-col {
+  position: relative;
+  border-radius: 10px 0 0 10px;
+  border: 1px solid var(--ph-border);
+  border-right: none;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.ph-lane__day-column {
+  min-width: 0;
+}
+
 .ph-lane__inner {
   position: relative;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--ph-border);
   overflow: hidden;
   /* Fallback only: ScheduleLane sets this from laneLayout (56px per 15 min → 224px/h). */
@@ -18,6 +155,14 @@
     transparent calc(var(--ph-lane-hour) - 1px),
     transparent var(--ph-lane-hour)
   );
+}
+
+.ph-lane__week-body .ph-lane__day-column:last-of-type .ph-lane__inner {
+  border-radius: 0 10px 10px 0;
+}
+
+.ph-lane__inner--column {
+  border-left: 1px solid var(--ph-border);
 }
 
 .ph-lane__ticks {
@@ -41,6 +186,11 @@
   bottom: 0;
   left: 64px;
   right: 8px;
+}
+
+.ph-lane__canvas--column {
+  left: 2px;
+  right: 2px;
 }
 
 .ph-lane__footer {

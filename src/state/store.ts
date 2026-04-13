@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 
+import {
+  getPlanningWindowBounds,
+  isLocalIsoDateString,
+  localDateString,
+} from '../domain/calendarDates';
 import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
-import { placementValid, resolveDropStart } from '../domain/schedule';
+import { placementValidForDate, resolveDropStartForDate } from '../domain/schedule';
 import { clampBadgeSides } from '../domain/taskBadge';
 import { colorForTaskCategory } from '../domain/taskCategories';
 import type { ScheduledBlock, Task, TaskCategory, TaskId } from '../domain/types';
@@ -9,6 +14,26 @@ import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domai
 import { debounce, load, save } from './persistence';
 
 const PALETTE = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#D191FF', '#6C63FF'];
+
+function normalizeLoadedBlocks(raw: unknown): ScheduledBlock[] {
+  if (!Array.isArray(raw)) return [];
+  const today = localDateString(new Date());
+  return raw.map((item): ScheduledBlock => {
+    const o = item as Record<string, unknown>;
+    const taskId = String(o.taskId ?? '');
+    const startMinuteOfDay = Number(o.startMinuteOfDay);
+    const sd = o.scheduledDate;
+    const scheduledDate =
+      typeof sd === 'string' && isLocalIsoDateString(sd) ? sd : today;
+    return { taskId, startMinuteOfDay, scheduledDate };
+  });
+}
+
+/** Drop blocks outside the three-week planning window (prev / current / next calendar week). */
+function purgeBlocksOutsidePlanningWindow(blocks: ScheduledBlock[]): ScheduledBlock[] {
+  const { rangeStart, rangeEnd } = getPlanningWindowBounds();
+  return blocks.filter((b) => b.scheduledDate >= rangeStart && b.scheduledDate <= rangeEnd);
+}
 
 function reconcileTasks(tasks: Task[], blocks: ScheduledBlock[]): Task[] {
   const scheduled = new Set(blocks.map((b) => b.taskId));
@@ -24,20 +49,21 @@ function taskMap(tasks: Task[]): Map<TaskId, Task> {
 
 function computeResolvedScheduleStart(
   taskId: TaskId,
+  scheduledDate: string,
   clientY: number,
-  laneContentRect: DOMRect,
+  columnContentRect: DOMRect,
   tasks: Task[],
   blocks: ScheduledBlock[],
 ): number | null {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return null;
-  const relativeY = clientY - laneContentRect.top;
-  const clampedY = Math.max(0, Math.min(laneContentRect.height, relativeY));
+  const relativeY = clientY - columnContentRect.top;
+  const clampedY = Math.max(0, Math.min(columnContentRect.height, relativeY));
   const rawStart =
     SCHEDULE_VIEW_START_MINUTE +
-    (clampedY / laneContentRect.height) * SCHEDULE_VIEW_SPAN_MINUTES;
+    (clampedY / columnContentRect.height) * SCHEDULE_VIEW_SPAN_MINUTES;
   const map = taskMap(tasks);
-  return resolveDropStart(task, rawStart, blocks, map, {
+  return resolveDropStartForDate(task, rawStart, blocks, scheduledDate, map, {
     snapStep: 15,
     excludeTaskId: taskId,
   });
@@ -79,12 +105,10 @@ function pickColorForNewTask(
 }
 
 const initial = load();
+const initialBlocks = purgeBlocksOutsidePlanningWindow(normalizeLoadedBlocks(initial?.blocks));
 const initialTasks = initial?.tasks?.length
-  ? clampTaskDurations(
-      reconcileTasks(initial.tasks as Task[], (initial.blocks as ScheduledBlock[]) ?? []),
-    )
+  ? clampTaskDurations(reconcileTasks(initial.tasks as Task[], initialBlocks))
   : [];
-const initialBlocks = (initial?.blocks as ScheduledBlock[]) ?? [];
 
 type Store = {
   tasks: Task[];
@@ -117,13 +141,19 @@ type Store = {
   updateTaskCategory: (id: TaskId, category: TaskCategory | null) => void;
   updateTaskBadge: (id: TaskId, patch: { sides?: number; accent?: string }) => void;
   removeTask: (id: TaskId) => void;
-  /** Drop onto schedule lane using anchor Y (viewport) and lane DOM rect (content box). */
-  dropOnSchedule: (taskId: TaskId, clientY: number, laneContentRect: DOMRect) => void;
+  /** Drop onto a day column: local `scheduledDate`, anchor Y, column content rect. */
+  dropOnSchedule: (
+    taskId: TaskId,
+    scheduledDate: string,
+    clientY: number,
+    columnContentRect: DOMRect,
+  ) => void;
   /** Resolved snapped start for UI preview; same rules as drop without mutating. */
   previewScheduleDrop: (
     taskId: TaskId,
+    scheduledDate: string,
     clientY: number,
-    laneContentRect: DOMRect,
+    columnContentRect: DOMRect,
   ) => number | null;
   returnToBacklog: (taskId: TaskId) => void;
 };
@@ -274,18 +304,26 @@ export const usePlannerStore = create<Store>((set, get) => ({
       const map = taskMap(tasks);
       const blocks = [...s.blocks];
       const block = blocks[blockIdx]!;
+      const date = block.scheduledDate;
 
-      if (placementValid(updatedTask, block.startMinuteOfDay, blocks, map, id)) {
+      if (placementValidForDate(updatedTask, block.startMinuteOfDay, blocks, date, map, id)) {
         return { tasks, blocks };
       }
 
-      const newStart = resolveDropStart(updatedTask, block.startMinuteOfDay, blocks, map, {
-        snapStep: 15,
-        excludeTaskId: id,
-      });
+      const newStart = resolveDropStartForDate(
+        updatedTask,
+        block.startMinuteOfDay,
+        blocks,
+        date,
+        map,
+        {
+          snapStep: 15,
+          excludeTaskId: id,
+        },
+      );
       if (newStart === null) return s;
 
-      blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart };
+      blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart, scheduledDate: date };
       return { tasks, blocks };
     });
   },
@@ -298,13 +336,23 @@ export const usePlannerStore = create<Store>((set, get) => ({
     }));
   },
 
-  dropOnSchedule: (taskId, clientY, laneContentRect) => {
+  dropOnSchedule: (taskId, scheduledDate, clientY, columnContentRect) => {
+    const { rangeStart, rangeEnd } = getPlanningWindowBounds();
+    if (scheduledDate < rangeStart || scheduledDate > rangeEnd) return;
+
     const { tasks, blocks } = get();
-    const start = computeResolvedScheduleStart(taskId, clientY, laneContentRect, tasks, blocks);
+    const start = computeResolvedScheduleStart(
+      taskId,
+      scheduledDate,
+      clientY,
+      columnContentRect,
+      tasks,
+      blocks,
+    );
     if (start === null) return;
 
     const nextBlocks = blocks.filter((b) => b.taskId !== taskId);
-    nextBlocks.push({ taskId, startMinuteOfDay: start });
+    nextBlocks.push({ taskId, startMinuteOfDay: start, scheduledDate });
 
     set({
       blocks: nextBlocks,
@@ -312,9 +360,19 @@ export const usePlannerStore = create<Store>((set, get) => ({
     });
   },
 
-  previewScheduleDrop: (taskId, clientY, laneContentRect) => {
+  previewScheduleDrop: (taskId, scheduledDate, clientY, columnContentRect) => {
+    const { rangeStart, rangeEnd } = getPlanningWindowBounds();
+    if (scheduledDate < rangeStart || scheduledDate > rangeEnd) return null;
+
     const { tasks, blocks } = get();
-    return computeResolvedScheduleStart(taskId, clientY, laneContentRect, tasks, blocks);
+    return computeResolvedScheduleStart(
+      taskId,
+      scheduledDate,
+      clientY,
+      columnContentRect,
+      tasks,
+      blocks,
+    );
   },
 
   returnToBacklog: (taskId) => {

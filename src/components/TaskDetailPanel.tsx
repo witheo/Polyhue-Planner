@@ -228,8 +228,10 @@ export function TaskDetailPanel() {
             </div>
             {block ? (
               <div>
-                <dt>Scheduled start</dt>
-                <dd>{formatTime(block.startMinuteOfDay)}</dd>
+                <dt>Scheduled</dt>
+                <dd>
+                  {block.scheduledDate} · {formatTime(block.startMinuteOfDay)}
+                </dd>
               </div>
             ) : (
               <div>

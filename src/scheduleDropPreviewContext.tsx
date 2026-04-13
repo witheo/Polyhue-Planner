@@ -4,6 +4,7 @@ import type { TaskId } from './domain/types';
 
 export type ScheduleDropPreview = {
   taskId: TaskId;
+  scheduledDate: string;
   startMinuteOfDay: number;
 } | null;
 

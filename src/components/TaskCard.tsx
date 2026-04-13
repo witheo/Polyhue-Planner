@@ -19,6 +19,7 @@ type Props = {
 };
 
 const ACCENT_BORDER = '6px';
+const LANE_ACCENT_BORDER = '4px';
 
 export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
   const openTaskDetail = usePlannerStore((s) => s.openTaskDetail);
@@ -29,6 +30,7 @@ export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
   });
 
   const accent = badgeRingForTask(task);
+  const accentBorder = variant === 'lane' ? LANE_ACCENT_BORDER : ACCENT_BORDER;
 
   const style: CSSProperties = {
     ...(variant === 'lane'
@@ -38,8 +40,8 @@ export function TaskCard({ task, variant, laneStyle, onRemove }: Props) {
         }),
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.22 : 1,
-    borderLeft: `${ACCENT_BORDER} solid ${accent}`,
-    borderTop: `${ACCENT_BORDER} solid ${accent}`,
+    borderLeft: `${accentBorder} solid ${accent}`,
+    borderTop: `${accentBorder} solid ${accent}`,
   };
 
   return (

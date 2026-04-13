@@ -14,6 +14,33 @@
   min-height: 0;
 }
 
+/* Schedule lane (week + day): tighter chrome so titles use more of the column. */
+.ph-card--lane.ph-card--ticket {
+  padding: 6px 6px 6px 8px;
+}
+
+.ph-card--lane.ph-card--ticket .ph-card__ticket-grid {
+  column-gap: 4px;
+}
+
+.ph-card--lane.ph-card--ticket .ph-card__title--ticket {
+  font-size: 0.85rem;
+}
+
+.ph-card--lane.ph-card--ticket button.ph-card__title--ticket.ph-card__title-link {
+  font: 400 0.85rem/1.45 var(--ph-font-sans);
+}
+
+.ph-card--lane.ph-card--ticket .ph-card__accent-badge {
+  width: 20px;
+  height: 20px;
+}
+
+.ph-card--lane.ph-card--ticket .ph-icon-btn--ticket {
+  padding: 0 2px;
+  font-size: 0.9rem;
+}
+
 .ph-card--drag-overlay {
   position: relative;
   min-width: 220px;

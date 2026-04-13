@@ -24,6 +24,10 @@ function blockSpan(block: ScheduledBlock, taskById: Map<TaskId, Task>): BlockSpa
   return { taskId: block.taskId, start, end };
 }
 
+export function blocksOnDate(blocks: ScheduledBlock[], scheduledDate: string): ScheduledBlock[] {
+  return blocks.filter((b) => b.scheduledDate === scheduledDate);
+}
+
 export function collectSpans(
   blocks: ScheduledBlock[],
   taskById: Map<TaskId, Task>,
@@ -50,6 +54,28 @@ export function placementValid(
   if (end > MINUTES_IN_DAY) return false;
   const spans = collectSpans(blocks, taskById, excludeTaskId ?? task.id);
   return !spans.some((s) => spansOverlap(start, end, s.start, s.end));
+}
+
+export function placementValidForDate(
+  task: Task,
+  desiredStart: number,
+  blocks: ScheduledBlock[],
+  scheduledDate: string,
+  taskById: Map<TaskId, Task>,
+  excludeTaskId?: TaskId,
+): boolean {
+  return placementValid(task, desiredStart, blocksOnDate(blocks, scheduledDate), taskById, excludeTaskId);
+}
+
+export function resolveDropStartForDate(
+  task: Task,
+  rawStartMinute: number,
+  blocks: ScheduledBlock[],
+  scheduledDate: string,
+  taskById: Map<TaskId, Task>,
+  options: { snapStep: number; excludeTaskId?: TaskId } = { snapStep: 15 },
+): number | null {
+  return resolveDropStart(task, rawStartMinute, blocksOnDate(blocks, scheduledDate), taskById, options);
 }
 
 /**

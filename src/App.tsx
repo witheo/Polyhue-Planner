@@ -13,7 +13,8 @@ import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
-import { SCHEDULE_LANE_DROP_ID, ScheduleLane } from './components/ScheduleLane';
+import { ScheduleLane } from './components/ScheduleLane';
+import { parseScheduleDayDropId } from './domain/scheduleDndIds';
 import { TaskCardDragOverlay } from './components/TaskCardDragOverlay';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
 import { parseDraggableTaskId } from './dndIds';
@@ -23,8 +24,6 @@ import {
 } from './scheduleDropPreviewContext';
 import type { TaskId } from './domain/types';
 import { usePlannerStore } from './state/store';
-
-const SCHEDULE_SELECTOR = '[data-ph-schedule-lane]';
 
 export default function App() {
   const pointer = useRef({ x: 0, y: 0 });
@@ -78,7 +77,8 @@ export default function App() {
         cleanupMove.current = () => window.removeEventListener('pointermove', onMove);
       }}
       onDragMove={(event: DragMoveEvent) => {
-        if (event.over?.id !== SCHEDULE_LANE_DROP_ID) {
+        const scheduledDate = parseScheduleDayDropId(event.over?.id);
+        if (!scheduledDate) {
           setScheduleDropPreview(null);
           return;
         }
@@ -87,16 +87,21 @@ export default function App() {
           setScheduleDropPreview(null);
           return;
         }
-        const el = document.querySelector(SCHEDULE_SELECTOR);
+        const el = document.querySelector(`[data-ph-schedule-date="${scheduledDate}"]`);
         if (!(el instanceof HTMLElement)) {
           setScheduleDropPreview(null);
           return;
         }
         const rect = el.getBoundingClientRect();
         const y = clientYForScheduleDrop(event, pointer.current.y);
-        const start = usePlannerStore.getState().previewScheduleDrop(taskId, y, rect);
+        const start = usePlannerStore.getState().previewScheduleDrop(
+          taskId,
+          scheduledDate,
+          y,
+          rect,
+        );
         setScheduleDropPreview(
-          start !== null ? { taskId, startMinuteOfDay: start } : null,
+          start !== null ? { taskId, scheduledDate, startMinuteOfDay: start } : null,
         );
       }}
       onDragEnd={(event: DragEndEvent) => {
@@ -115,12 +120,13 @@ export default function App() {
           return;
         }
 
-        if (overId === SCHEDULE_LANE_DROP_ID) {
-          const el = document.querySelector(SCHEDULE_SELECTOR);
+        const scheduledDate = parseScheduleDayDropId(overId);
+        if (scheduledDate) {
+          const el = document.querySelector(`[data-ph-schedule-date="${scheduledDate}"]`);
           if (!(el instanceof HTMLElement)) return;
           const rect = el.getBoundingClientRect();
           const y = clientYForScheduleDrop(event, pointer.current.y);
-          usePlannerStore.getState().dropOnSchedule(taskId, y, rect);
+          usePlannerStore.getState().dropOnSchedule(taskId, scheduledDate, y, rect);
         }
       }}
     >
@@ -129,7 +135,9 @@ export default function App() {
           <header className="ph-app__header">
             <div>
               <h1 className="ph-app__title">Polyhue Planner</h1>
-              <p className="ph-app__tagline">Backlog tickets + a thin one-day lane. Drag, snap, persist.</p>
+              <p className="ph-app__tagline">
+              Backlog tickets + week or day schedule (Monday-first week). Drag onto a day, snap, persist.
+            </p>
             </div>
           </header>
           <main className="ph-app__grid">

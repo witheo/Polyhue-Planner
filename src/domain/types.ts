@@ -44,6 +44,8 @@ export type ScheduledBlock = {
   taskId: TaskId;
   /** Start of the block within the day, minutes from midnight (0..1440). */
   startMinuteOfDay: number;
+  /** Local calendar day `YYYY-MM-DD`. */
+  scheduledDate: string;
 };
 
 export type PersistedStateV1 = {
