@@ -1,7 +1,10 @@
 .ph-app {
-  max-width: 1200px;
+  /* Let the schedule column use extra horizontal space on wide viewports (week/day grids use 1fr columns). */
+  width: 100%;
+  max-width: min(1800px, calc(100vw - 40px));
   margin: 0 auto;
   padding: 28px 20px 48px;
+  box-sizing: border-box;
 }
 
 .ph-app__header {
@@ -24,7 +27,12 @@
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(420px, 1fr);
   gap: 18px;
-  align-items: start;
+  /* Match column heights so the backlog panel can stretch to the schedule column (larger drop target). */
+  align-items: stretch;
+}
+
+.ph-app__grid > * {
+  min-height: 0;
 }
 
 @media (max-width: 900px) {

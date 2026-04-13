@@ -85,6 +85,17 @@
   color: #fff;
 }
 
+.ph-backlog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ph-backlog > .ph-panel__header,
+.ph-backlog > .ph-composer {
+  flex-shrink: 0;
+}
+
 .ph-backlog__list {
   list-style: none;
   margin: 0;
@@ -92,7 +103,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 120px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .ph-backlog__item {
