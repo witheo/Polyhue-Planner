@@ -1,19 +1,24 @@
 import {
+  closestCorners,
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
 import { ScheduleLane } from './components/ScheduleLane';
+import { backlogTaskIdsInStoreOrder } from './domain/reorderBacklogTasks';
 import { parseScheduleDayDropId } from './domain/scheduleDndIds';
 import { TaskCardDragOverlay } from './components/TaskCardDragOverlay';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
@@ -24,6 +29,22 @@ import {
 } from './scheduleDropPreviewContext';
 import type { TaskId } from './domain/types';
 import { usePlannerStore } from './state/store';
+
+const plannerCollisionDetection: CollisionDetection = (args) => {
+  const within = pointerWithin(args);
+  if (within.length > 0) {
+    const scheduleHit = within.find((c) => parseScheduleDayDropId(String(c.id)));
+    if (scheduleHit) {
+      return [scheduleHit, ...within.filter((c) => c !== scheduleHit)];
+    }
+    const taskHit = within.find((c) => parseDraggableTaskId(String(c.id)));
+    if (taskHit) {
+      return [taskHit, ...within.filter((c) => c !== taskHit)];
+    }
+    return within;
+  }
+  return closestCorners(args);
+};
 
 export default function App() {
   const pointer = useRef({ x: 0, y: 0 });
@@ -57,11 +78,14 @@ export default function App() {
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
     }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   return (
     <DndContext
-      collisionDetection={pointerWithin}
+      collisionDetection={plannerCollisionDetection}
       sensors={sensors}
       onDragStart={(event: DragStartEvent) => {
         setScheduleDropPreview(null);
@@ -114,6 +138,25 @@ export default function App() {
         if (!taskId) return;
 
         const overId = event.over?.id?.toString();
+        const overTaskId = parseDraggableTaskId(overId);
+
+        if (overTaskId && overTaskId !== taskId) {
+          const state = usePlannerStore.getState();
+          const activeTask = state.tasks.find((t) => t.id === taskId);
+          const overTask = state.tasks.find((t) => t.id === overTaskId);
+          if (
+            activeTask?.status === 'backlog' &&
+            overTask?.status === 'backlog'
+          ) {
+            const backlogIds = backlogTaskIdsInStoreOrder(state.tasks);
+            const oldIndex = backlogIds.indexOf(taskId);
+            const newIndex = backlogIds.indexOf(overTaskId);
+            if (oldIndex >= 0 && newIndex >= 0) {
+              state.reorderBacklog(arrayMove(backlogIds, oldIndex, newIndex));
+            }
+            return;
+          }
+        }
 
         if (overId === BACKLOG_DROP_ID) {
           usePlannerStore.getState().returnToBacklog(taskId);

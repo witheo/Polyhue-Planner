@@ -1,7 +1,11 @@
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMemo, useState } from 'react';
 
+import { draggableTaskId } from '../dndIds';
 import { minutesFromDurationInput } from '../domain/durations';
+import { backlogTaskIdsInStoreOrder } from '../domain/reorderBacklogTasks';
+import type { TaskId } from '../domain/types';
 import { usePlannerStore } from '../state/store';
 import { BrainDumpImportDialog } from './BrainDumpImportDialog';
 import { DurationPicker } from './DurationPicker';
@@ -9,16 +13,37 @@ import { TaskCard } from './TaskCard';
 
 export const BACKLOG_DROP_ID = 'backlog';
 
+function focusBacklogRow(taskId: TaskId) {
+  requestAnimationFrame(() => {
+    document.getElementById(`backlog-row-${taskId}`)?.focus();
+  });
+}
+
 export function Backlog() {
   const allTasks = usePlannerStore((s) => s.tasks);
   const tasks = useMemo(() => allTasks.filter((t) => t.status === 'backlog'), [allTasks]);
   const addTask = usePlannerStore((s) => s.addTask);
   const removeTask = usePlannerStore((s) => s.removeTask);
+  const reorderBacklog = usePlannerStore((s) => s.reorderBacklog);
   const { setNodeRef, isOver } = useDroppable({ id: BACKLOG_DROP_ID });
 
   const [title, setTitle] = useState('');
   const [durationInput, setDurationInput] = useState('30');
   const [brainDumpOpen, setBrainDumpOpen] = useState(false);
+
+  const sortableItems = useMemo(() => tasks.map((t) => draggableTaskId(t.id)), [tasks]);
+
+  const swapBacklog = (taskId: TaskId, direction: 'up' | 'down') => {
+    const ids = backlogTaskIdsInStoreOrder(usePlannerStore.getState().tasks);
+    const i = ids.indexOf(taskId);
+    if (i < 0) return;
+    const j = direction === 'up' ? i - 1 : i + 1;
+    if (j < 0 || j >= ids.length) return;
+    const next = [...ids];
+    [next[i], next[j]] = [next[j]!, next[i]!];
+    reorderBacklog(next);
+    focusBacklogRow(taskId);
+  };
 
   return (
     <section
@@ -29,8 +54,9 @@ export function Backlog() {
       <header className="ph-panel__header">
         <h2 className="ph-panel__title">Backlog</h2>
         <p className="ph-panel__hint">
-          Click the title text for details. Drag from anywhere on the card (except the title) to
-          move. Drop on the lane to schedule; drop here to unschedule. Minimum duration 15 minutes.
+          Click the title for details. Drag cards to reorder the backlog or move them to the
+          schedule; use the arrow buttons or keyboard in the list to reorder without dragging. Drop
+          on the lane to schedule; drop here to unschedule. Minimum duration 15 minutes.
         </p>
       </header>
 
@@ -70,13 +96,30 @@ export function Backlog() {
 
       <BrainDumpImportDialog open={brainDumpOpen} onClose={() => setBrainDumpOpen(false)} />
 
-      <ul className="ph-backlog__list">
-        {tasks.map((task) => (
-          <li key={task.id} className="ph-backlog__item">
-            <TaskCard task={task} variant="backlog" onRemove={() => removeTask(task.id)} />
-          </li>
-        ))}
-      </ul>
+      <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+        <ul className="ph-backlog__list">
+          {tasks.map((task, index) => (
+            <li
+              key={task.id}
+              id={`backlog-row-${task.id}`}
+              className="ph-backlog__item"
+              tabIndex={-1}
+            >
+              <TaskCard
+                task={task}
+                variant="backlog"
+                onRemove={() => removeTask(task.id)}
+                backlogReorder={{
+                  canMoveUp: index > 0,
+                  canMoveDown: index < tasks.length - 1,
+                  onMoveUp: () => swapBacklog(task.id, 'up'),
+                  onMoveDown: () => swapBacklog(task.id, 'down'),
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      </SortableContext>
     </section>
   );
 }

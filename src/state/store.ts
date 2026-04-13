@@ -6,6 +6,7 @@ import {
   localDateString,
 } from '../domain/calendarDates';
 import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
+import { mergeTasksWithBacklogOrder } from '../domain/reorderBacklogTasks';
 import { placementValidForDate, resolveDropStartForDate } from '../domain/schedule';
 import { clampBadgeSides } from '../domain/taskBadge';
 import { colorForTaskCategory } from '../domain/taskCategories';
@@ -156,6 +157,8 @@ type Store = {
     columnContentRect: DOMRect,
   ) => number | null;
   returnToBacklog: (taskId: TaskId) => void;
+  /** Reorders backlog tasks in store order; no-op if ids are not exactly the current backlog set. */
+  reorderBacklog: (orderedBacklogIds: TaskId[]) => void;
 };
 
 export const usePlannerStore = create<Store>((set, get) => ({
@@ -382,6 +385,14 @@ export const usePlannerStore = create<Store>((set, get) => ({
         blocks: nextBlocks,
         tasks: reconcileTasks(s.tasks, nextBlocks),
       };
+    });
+  },
+
+  reorderBacklog: (orderedBacklogIds) => {
+    set((s) => {
+      const merged = mergeTasksWithBacklogOrder(s.tasks, orderedBacklogIds);
+      if (merged === null) return s;
+      return { tasks: merged };
     });
   },
 }));
