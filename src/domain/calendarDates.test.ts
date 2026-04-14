@@ -6,6 +6,7 @@ import {
   clampDateIntoWeek,
   getPlanningWindowBounds,
   localDateString,
+  planningWeekOffsetForDate,
   startOfWeekMonday,
   weekDatesContaining,
 } from './calendarDates';
@@ -92,5 +93,26 @@ describe('weekDatesContaining', () => {
       '2026-04-11',
       '2026-04-12',
     ]);
+  });
+});
+
+describe('planningWeekOffsetForDate', () => {
+  const anchor = new Date(2026, 3, 8, 12, 0, 0);
+
+  it('returns -1 for a day in the prior planning week', () => {
+    expect(planningWeekOffsetForDate('2026-04-02', anchor)).toBe(-1);
+  });
+
+  it('returns 0 for a day in the calendar week containing the anchor', () => {
+    expect(planningWeekOffsetForDate('2026-04-07', anchor)).toBe(0);
+  });
+
+  it('returns 1 for a day in the following calendar week inside the window', () => {
+    expect(planningWeekOffsetForDate('2026-04-15', anchor)).toBe(1);
+  });
+
+  it('clamps to the window before resolving the offset', () => {
+    expect(planningWeekOffsetForDate('2026-01-01', anchor)).toBe(-1);
+    expect(planningWeekOffsetForDate('2026-12-31', anchor)).toBe(1);
   });
 });

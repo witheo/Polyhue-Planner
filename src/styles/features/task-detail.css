@@ -21,7 +21,6 @@
   flex-direction: column;
   background: linear-gradient(200deg, #171a24 0%, #12151f 100%);
   border-left: 1px solid var(--ph-border);
-  box-shadow: -16px 0 48px rgba(0, 0, 0, 0.55);
 }
 
 .ph-detail-panel__header {
@@ -153,7 +152,6 @@
 
 .ph-detail-badge-shape--selected {
   border-color: rgba(108, 99, 255, 0.75);
-  box-shadow: 0 0 0 1px rgba(108, 99, 255, 0.35);
 }
 
 .ph-detail-badge-shape__svg {
@@ -180,7 +178,6 @@
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .ph-detail-badge-swatch:hover {
@@ -189,7 +186,8 @@
 
 .ph-detail-badge-swatch--selected {
   border-color: var(--ph-text);
-  box-shadow: 0 0 0 2px var(--ph-bg), 0 0 0 4px rgba(108, 99, 255, 0.65);
+  outline: 2px solid rgba(108, 99, 255, 0.65);
+  outline-offset: 2px;
 }
 
 .ph-detail-meta {

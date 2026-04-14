@@ -45,7 +45,6 @@
   background: linear-gradient(180deg, var(--ph-surface) 0%, var(--ph-surface-2) 100%);
   border: 1px solid var(--ph-border);
   border-radius: var(--ph-radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .ph-panel__header {

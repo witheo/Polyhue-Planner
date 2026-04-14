@@ -170,7 +170,7 @@
   );
 }
 
-.ph-lane__week-body .ph-lane__day-column:last-of-type .ph-lane__inner {
+.ph-lane__week-body .ph-lane__day-column--last .ph-lane__inner {
   border-radius: 0 10px 10px 0;
 }
 
@@ -227,8 +227,6 @@
   border-left: 1px solid var(--ph-border);
   border-bottom-color: var(--ph-border);
   border-radius: 10px 0 0 0;
-  /* Shadow only on the time column avoids a “floating” slab misaligned with the body gutter. */
-  box-shadow: none;
 }
 
 .ph-lane__week:not(.ph-lane__week--day) .ph-lane__ticks-col {
@@ -240,8 +238,4 @@
   /* Meet the header cell: no double rule; only round the bottom-left so the joint is one L-shape. */
   border-top: none;
   border-radius: 0 0 0 10px;
-  /* Crisp seam into Mon + one soft shadow (was mismatched with the header cell’s shadow). */
-  box-shadow:
-    1px 0 0 var(--ph-border),
-    6px 0 18px -4px rgba(0, 0, 0, 0.45);
 }

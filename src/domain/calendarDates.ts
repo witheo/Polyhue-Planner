@@ -37,6 +37,27 @@ export function clampDateIntoWeek(dateStr: string, weekDates: string[]): string 
   return weekDates.includes(dateStr) ? dateStr : weekDates[0]!;
 }
 
+/**
+ * Maps a local calendar day to the schedule lane’s week stepper (-1 / 0 / +1 relative to the
+ * calendar week containing `now`), after clamping into the planning window.
+ */
+export function planningWeekOffsetForDate(dateStr: string, now: Date = new Date()): number {
+  const bounds = getPlanningWindowBounds(now);
+  const clamped = clampDateBetween(dateStr, bounds.rangeStart, bounds.rangeEnd);
+  const parts = clamped.split('-').map(Number);
+  const y = parts[0];
+  const mo = parts[1];
+  const day = parts[2];
+  if (y === undefined || mo === undefined || day === undefined) return 0;
+  const thisWeekMon = startOfWeekMonday(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0),
+  );
+  const selectedWeekMon = startOfWeekMonday(new Date(y, mo - 1, day, 12, 0, 0, 0));
+  const diffDays = Math.round((selectedWeekMon.getTime() - thisWeekMon.getTime()) / 86400000);
+  const offset = diffDays / 7;
+  return Math.max(-1, Math.min(1, offset));
+}
+
 /** Inclusive clamp for `YYYY-MM-DD` strings (lexicographic order matches calendar order). */
 export function clampDateBetween(dateStr: string, minStr: string, maxStr: string): string {
   if (dateStr < minStr) return minStr;

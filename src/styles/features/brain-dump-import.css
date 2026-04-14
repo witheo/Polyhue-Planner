@@ -7,7 +7,6 @@
   color: var(--ph-text);
   max-width: min(960px, calc(100vw - 24px));
   width: 100%;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
 }
 
 .ph-brain-dump-dialog::backdrop {

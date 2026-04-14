@@ -1,13 +1,15 @@
 import { useDroppable } from '@dnd-kit/core';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 
 import {
   addDaysLocal,
   clampDateBetween,
+  clampDateIntoWeek,
   formatDayColumnLabel,
   formatWeekRangeLabel,
   getPlanningWindowBounds,
   localDateString,
+  planningWeekOffsetForDate,
   startOfWeekMonday,
   weekDatesContaining,
 } from '../domain/calendarDates';
@@ -44,6 +46,8 @@ type DayColumnProps = {
   dropPreviewDate: string | null;
   dropPreviewStart: number | null;
   previewTaskId: TaskId | null;
+  /** Rounds the lane’s outer right edge; explicit class avoids :last-of-type quirks with the ticks column. */
+  isLastDayInRow: boolean;
 };
 
 function ScheduleDayColumn({
@@ -53,6 +57,7 @@ function ScheduleDayColumn({
   dropPreviewDate,
   dropPreviewStart,
   previewTaskId,
+  isLastDayInRow,
 }: DayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: scheduleDayDropId(scheduledDate) });
 
@@ -67,7 +72,7 @@ function ScheduleDayColumn({
   } as CSSProperties;
 
   return (
-    <div className="ph-lane__day-column">
+    <div className={'ph-lane__day-column' + (isLastDayInRow ? ' ph-lane__day-column--last' : '')}>
       <div
         ref={setNodeRef}
         data-ph-schedule-day
@@ -145,11 +150,6 @@ export function ScheduleLane() {
 
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDates), [weekDates]);
 
-  useEffect(() => {
-    const bounds = getPlanningWindowBounds();
-    setSelectedDate((sd) => clampDateBetween(sd, bounds.rangeStart, bounds.rangeEnd));
-  }, [weekOffset]);
-
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
 
   const ticks = useMemo(() => {
@@ -208,32 +208,60 @@ export function ScheduleLane() {
     </div>
   );
 
-  const handleTabWeek = () => setViewMode('week');
+  const handleTabWeek = () => {
+    const o = planningWeekOffsetForDate(selectedDate);
+    setWeekOffset(o);
+    setViewMode('week');
+  };
 
   const handleTabDay = () => {
     setViewMode('day');
     const b = getPlanningWindowBounds();
-    setSelectedDate((sd) => clampDateBetween(sd, b.rangeStart, b.rangeEnd));
+    setSelectedDate((sd) => clampDateBetween(clampDateIntoWeek(sd, weekDates), b.rangeStart, b.rangeEnd));
   };
 
   const handlePrevDay = () => {
     if (!canPrevDay) return;
-    setSelectedDate(addDaysLocal(selectedDate, -1));
+    const b = getPlanningWindowBounds();
+    const next = clampDateBetween(addDaysLocal(selectedDate, -1), b.rangeStart, b.rangeEnd);
+    setWeekOffset(planningWeekOffsetForDate(next));
+    setSelectedDate(next);
   };
 
   const handleNextDay = () => {
     if (!canNextDay) return;
-    setSelectedDate(addDaysLocal(selectedDate, 1));
+    const b = getPlanningWindowBounds();
+    const next = clampDateBetween(addDaysLocal(selectedDate, 1), b.rangeStart, b.rangeEnd);
+    setWeekOffset(planningWeekOffsetForDate(next));
+    setSelectedDate(next);
   };
 
   const handlePrevWeek = () => {
     if (!canPrevWeek) return;
-    setWeekOffset((o) => Math.max(-1, o - 1));
+    const prevDates = weekDates;
+    const nextOffset = Math.max(-1, weekOffset - 1);
+    const mon = startOfWeekMonday(localMidnightFromDate(new Date()));
+    mon.setDate(mon.getDate() + nextOffset * 7);
+    const nextDates = weekDatesContaining(mon);
+    const idx = prevDates.indexOf(selectedDate);
+    const pick = idx >= 0 ? nextDates[idx]! : clampDateIntoWeek(selectedDate, nextDates);
+    const b = getPlanningWindowBounds();
+    setWeekOffset(nextOffset);
+    setSelectedDate(clampDateBetween(pick, b.rangeStart, b.rangeEnd));
   };
 
   const handleNextWeek = () => {
     if (!canNextWeek) return;
-    setWeekOffset((o) => Math.min(1, o + 1));
+    const prevDates = weekDates;
+    const nextOffset = Math.min(1, weekOffset + 1);
+    const mon = startOfWeekMonday(localMidnightFromDate(new Date()));
+    mon.setDate(mon.getDate() + nextOffset * 7);
+    const nextDates = weekDatesContaining(mon);
+    const idx = prevDates.indexOf(selectedDate);
+    const pick = idx >= 0 ? nextDates[idx]! : clampDateIntoWeek(selectedDate, nextDates);
+    const b = getPlanningWindowBounds();
+    setWeekOffset(nextOffset);
+    setSelectedDate(clampDateBetween(pick, b.rangeStart, b.rangeEnd));
   };
 
   const handleToday = () => {
@@ -374,7 +402,7 @@ export function ScheduleLane() {
               <div className="ph-lane__ticks-col" style={ticksColStyle}>
                 {ticksInner}
               </div>
-              {weekDates.map((d) => (
+              {weekDates.map((d, i) => (
                 <ScheduleDayColumn
                   key={d}
                   scheduledDate={d}
@@ -383,6 +411,7 @@ export function ScheduleLane() {
                   dropPreviewDate={dropPreviewDate}
                   dropPreviewStart={dropPreviewStart}
                   previewTaskId={previewTaskId}
+                  isLastDayInRow={i === weekDates.length - 1}
                 />
               ))}
             </div>
@@ -404,6 +433,7 @@ export function ScheduleLane() {
                 dropPreviewDate={dropPreviewDate}
                 dropPreviewStart={dropPreviewStart}
                 previewTaskId={previewTaskId}
+                isLastDayInRow
               />
             </div>
           </div>
