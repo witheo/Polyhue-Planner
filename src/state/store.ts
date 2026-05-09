@@ -5,12 +5,16 @@ import {
   isLocalIsoDateString,
   localDateString,
 } from '../domain/calendarDates';
-import { MIN_TASK_DURATION_MINUTES } from '../domain/durations';
+import {
+  MIN_SUBTASK_DURATION_MINUTES,
+  MIN_TASK_DURATION_MINUTES,
+  taskDurationMinutesEffective,
+} from '../domain/durations';
 import { mergeTasksWithBacklogOrder } from '../domain/reorderBacklogTasks';
 import { placementValidForDate, resolveDropStartForDate } from '../domain/schedule';
 import { clampBadgeSides } from '../domain/taskBadge';
 import { colorForTaskCategory } from '../domain/taskCategories';
-import type { ScheduledBlock, Task, TaskCategory, TaskId } from '../domain/types';
+import type { ScheduledBlock, Task, TaskCategory, TaskId, TaskSubtask } from '../domain/types';
 import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domain/time';
 import { debounce, load, save } from './persistence';
 
@@ -76,7 +80,7 @@ function clampSubtasks(subtasks: Task['subtasks']): Task['subtasks'] {
     .map((s) => ({
       label: s.label.trim(),
       durationMinutes: Math.max(
-        MIN_TASK_DURATION_MINUTES,
+        MIN_SUBTASK_DURATION_MINUTES,
         Math.round(s.durationMinutes),
       ),
     }))
@@ -85,14 +89,19 @@ function clampSubtasks(subtasks: Task['subtasks']): Task['subtasks'] {
 }
 
 function clampTaskDurations(tasks: Task[]): Task[] {
-  return tasks.map((t) => ({
-    ...t,
-    durationMinutes: Math.max(
+  return tasks.map((t) => {
+    const subtasks = clampSubtasks(t.subtasks);
+    const baseDuration = Math.max(
       MIN_TASK_DURATION_MINUTES,
       Math.round(t.durationMinutes),
-    ),
-    subtasks: clampSubtasks(t.subtasks),
-  }));
+    );
+    const durationMinutes = taskDurationMinutesEffective({
+      ...t,
+      subtasks,
+      durationMinutes: baseDuration,
+    });
+    return { ...t, durationMinutes, subtasks };
+  });
 }
 
 function pickColorForNewTask(
@@ -141,6 +150,8 @@ type Store = {
   updateTaskDuration: (id: TaskId, durationMinutes: number) => void;
   updateTaskCategory: (id: TaskId, category: TaskCategory | null) => void;
   updateTaskBadge: (id: TaskId, patch: { sides?: number; accent?: string }) => void;
+  /** Replace subtasks for a task (trim/clamp labels and minutes); persists with tasks. */
+  updateTaskSubtasks: (id: TaskId, subtasks: TaskSubtask[]) => void;
   removeTask: (id: TaskId) => void;
   /** Drop onto a day column: local `scheduledDate`, anchor Y, column content rect. */
   dropOnSchedule: (
@@ -183,6 +194,17 @@ export const usePlannerStore = create<Store>((set, get) => ({
     const rotate = get().tasks.length;
     const nextColor = pickColorForNewTask({ color, category }, rotate);
     const st = clampSubtasks(subtasks);
+    const durationFromInput = Math.max(
+      MIN_TASK_DURATION_MINUTES,
+      Math.round(durationMinutes),
+    );
+    const resolvedDurationMinutes =
+      st !== undefined
+        ? taskDurationMinutesEffective({
+            durationMinutes: durationFromInput,
+            subtasks: st,
+          })
+        : durationFromInput;
     const task: Task = {
       id,
       title: trimmed,
@@ -191,7 +213,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
         : {}),
       ...(st !== undefined ? { subtasks: st } : {}),
       ...(category !== undefined ? { category } : {}),
-      durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes)),
+      durationMinutes: resolvedDurationMinutes,
       color: nextColor,
       badgeSides: 6,
       badgeAccent: nextColor,
@@ -219,6 +241,17 @@ export const usePlannerStore = create<Store>((set, get) => ({
         startLen + newTasks.length,
       );
       const st = clampSubtasks(input.subtasks);
+      const durationFromInput = Math.max(
+        MIN_TASK_DURATION_MINUTES,
+        Math.round(input.durationMinutes),
+      );
+      const resolvedDurationMinutes =
+        st !== undefined
+          ? taskDurationMinutesEffective({
+              durationMinutes: durationFromInput,
+              subtasks: st,
+            })
+          : durationFromInput;
       const task: Task = {
         id,
         title: trimmed,
@@ -227,7 +260,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
           : {}),
         ...(st !== undefined ? { subtasks: st } : {}),
         ...(input.category !== undefined ? { category: input.category } : {}),
-        durationMinutes: Math.max(MIN_TASK_DURATION_MINUTES, Math.round(input.durationMinutes)),
+        durationMinutes: resolvedDurationMinutes,
         color: nextColor,
         badgeSides: 6,
         badgeAccent: nextColor,
@@ -291,11 +324,68 @@ export const usePlannerStore = create<Store>((set, get) => ({
     }));
   },
 
+  updateTaskSubtasks: (id, subtasks) => {
+    const clamped = clampSubtasks(subtasks);
+    set((s) => {
+      const task = s.tasks.find((t) => t.id === id);
+      if (!task) return s;
+
+      let updatedTask: Task;
+      if (clamped === undefined) {
+        const next: Task = { ...task };
+        delete next.subtasks;
+        updatedTask = next;
+      } else {
+        const durationMinutes = taskDurationMinutesEffective({
+          ...task,
+          subtasks: clamped,
+        });
+        updatedTask = { ...task, subtasks: clamped, durationMinutes };
+      }
+
+      const tasks = s.tasks.map((t) => (t.id === id ? updatedTask : t));
+      if (updatedTask.durationMinutes === task.durationMinutes) {
+        return { tasks };
+      }
+
+      const blockIdx = s.blocks.findIndex((b) => b.taskId === id);
+      if (blockIdx === -1) {
+        return { tasks };
+      }
+
+      const map = taskMap(tasks);
+      const blocks = [...s.blocks];
+      const block = blocks[blockIdx]!;
+      const date = block.scheduledDate;
+
+      if (placementValidForDate(updatedTask, block.startMinuteOfDay, blocks, date, map, id)) {
+        return { tasks, blocks };
+      }
+
+      const newStart = resolveDropStartForDate(
+        updatedTask,
+        block.startMinuteOfDay,
+        blocks,
+        date,
+        map,
+        {
+          snapStep: 15,
+          excludeTaskId: id,
+        },
+      );
+      if (newStart === null) return s;
+
+      blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart, scheduledDate: date };
+      return { tasks, blocks };
+    });
+  },
+
   updateTaskDuration: (id, durationMinutes) => {
     const next = Math.max(MIN_TASK_DURATION_MINUTES, Math.round(durationMinutes));
     set((s) => {
       const task = s.tasks.find((t) => t.id === id);
-      if (!task || task.durationMinutes === next) return s;
+      if (!task || task.subtasks?.length) return s;
+      if (task.durationMinutes === next) return s;
 
       const updatedTask: Task = { ...task, durationMinutes: next };
       const blockIdx = s.blocks.findIndex((b) => b.taskId === id);

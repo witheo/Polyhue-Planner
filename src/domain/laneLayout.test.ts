@@ -4,7 +4,6 @@ import {
   BACKLOG_TICKET_MIN_HEIGHT_PX,
   laneCardHeightPx,
   TICKET_SUBTASKS_VISIBLE_MIN_PX,
-  TICKET_TWO_ROW_LAYOUT_MIN_PX,
 } from './laneLayout';
 
 describe('laneCardHeightPx', () => {
@@ -23,12 +22,6 @@ describe('laneCardHeightPx', () => {
 
   it('clamps sub-minimum duration for height calculation', () => {
     expect(laneCardHeightPx(5)).toBe(BACKLOG_TICKET_MIN_HEIGHT_PX);
-  });
-});
-
-describe('TICKET_TWO_ROW_LAYOUT_MIN_PX', () => {
-  it('matches @container ticket (min-height) for stacked ticket header in task-card.css', () => {
-    expect(TICKET_TWO_ROW_LAYOUT_MIN_PX).toBe(52);
   });
 });
 

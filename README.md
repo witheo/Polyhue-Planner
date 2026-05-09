@@ -20,13 +20,21 @@ Then open the printed local URL (typically `http://localhost:5173`).
 
 ## Brain dump import (local dev)
 
-Backlog includes **Import from text…**, which calls a small **local Node proxy** (the browser cannot run the Cursor CLI). The proxy runs **`agent`** (`-p --mode ask --output-format json`) with a fixed prompt in [`scripts/brain-dump-system-prompt.txt`](./scripts/brain-dump-system-prompt.txt) so unstructured notes become JSON tasks with optional **category** (work, personal, health, errands, finance, learning, other → ticket color), optional **subtasks** with per-step minutes, and durations. Set **`BRAIN_DUMP_AI=0`** on the proxy process to skip the model and return a single stub task.
+Backlog includes **Import from text…**, which calls a small **local Node proxy** (the browser cannot call Cursor directly). The proxy uses the Cursor **`@cursor/sdk`** local agent with a fixed prompt in [`scripts/brain-dump-system-prompt.txt`](./scripts/brain-dump-system-prompt.txt) so unstructured notes become JSON tasks with optional **category** (work, personal, health, errands, finance, learning, other → ticket color), optional **subtasks** with per-step minutes, and durations. Set **`BRAIN_DUMP_AI=0`** on the proxy process to skip the model and return a single stub task.
 
-- **Contributors — Cursor CLI, auth, env, privacy:** [`docs/brain-dump-local-ai-import.md`](./docs/brain-dump-local-ai-import.md)
+- **Contributors — API key, env, privacy:** [`docs/brain-dump-local-ai-import.md`](./docs/brain-dump-local-ai-import.md)
 - **Architecture and JSON wire format:** [`docs/brain-dump-provider-spike.md`](./docs/brain-dump-provider-spike.md)
 
+**One terminal** — Vite + brain-dump proxy together (still set `VITE_BRAIN_DUMP_PROXY_URL` in `.env.local` as below):
+
 ```bash
-# terminal 1 (needs `agent` on PATH + auth, unless BRAIN_DUMP_AI=0)
+npm run dev:with-proxy
+```
+
+**Two terminals** — same thing split out:
+
+```bash
+# terminal 1 (needs CURSOR_API_KEY unless BRAIN_DUMP_AI=0)
 npm run brain-dump-proxy
 
 # terminal 2: add to .env.local (create if needed):
@@ -44,7 +52,8 @@ npm run dev
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint                               |
 | `npm run test` | Vitest (`schedule.ts`, `laneLayout.ts`, …) |
-| `npm run brain-dump-proxy` | `POST /brain-dump` → Cursor `agent` + prompt (port 8787; dev only) |
+| `npm run dev:with-proxy` | **Vite +** brain-dump proxy (same as two terminals below) |
+| `npm run brain-dump-proxy` | `POST /brain-dump` → Cursor `@cursor/sdk` local agent + prompt (port 8787; dev only) |
 
 ## Persistence
 

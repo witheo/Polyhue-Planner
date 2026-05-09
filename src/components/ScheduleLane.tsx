@@ -13,6 +13,7 @@ import {
   startOfWeekMonday,
   weekDatesContaining,
 } from '../domain/calendarDates';
+import { taskDurationMinutesEffective } from '../domain/durations';
 import { laneCardHeightPx, LANE_PIXELS_PER_MINUTE, SCHEDULE_HOUR_HEIGHT_PX } from '../domain/laneLayout';
 import { scheduleDayDropId } from '../domain/scheduleDndIds';
 import {
@@ -87,14 +88,14 @@ function ScheduleDayColumn({
               style={{
                 position: 'absolute',
                 top: (dropPreviewStart - SCHEDULE_VIEW_START_MINUTE) * PX_PER_MINUTE,
-                height: laneCardHeightPx(previewTask.durationMinutes),
+                height: laneCardHeightPx(taskDurationMinutesEffective(previewTask)),
                 left: 0,
                 right: 0,
               }}
               aria-hidden
             >
               <span className="ph-schedule-drop-ghost__label">
-                {formatTime(dropPreviewStart)} · {previewTask.durationMinutes} min
+                {formatTime(dropPreviewStart)} · {taskDurationMinutesEffective(previewTask)} min
               </span>
             </div>
           ) : null}
@@ -102,7 +103,7 @@ function ScheduleDayColumn({
             const task = tasksById.get(block.taskId);
             if (!task) return null;
             const top = (block.startMinuteOfDay - SCHEDULE_VIEW_START_MINUTE) * PX_PER_MINUTE;
-            const height = laneCardHeightPx(task.durationMinutes);
+            const height = laneCardHeightPx(taskDurationMinutesEffective(task));
             return (
               <TaskCard
                 key={block.taskId}

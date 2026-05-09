@@ -1,22 +1,30 @@
 #!/usr/bin/env node
 /**
- * Local POST /brain-dump proxy: calls Cursor `agent` with a fixed system prompt so
- * unstructured notes become JSON tasks (optional subtasks with per-step minutes).
+ * Local POST /brain-dump proxy: uses Cursor `@cursor/sdk` (local agent) with a
+ * fixed system prompt so unstructured notes become JSON tasks (optional
+ * subtasks with per-step minutes).
  *
  *   npm run brain-dump-proxy
  *
  * Env:
- *   VITE_BRAIN_DUMP_PROXY_URL — set in the app’s .env.local (this script does not read it).
- *   BRAIN_DUMP_AI=0 — skip agent; return a single stub task (UI smoke without auth).
- *   BRAIN_DUMP_AGENT_BIN — default: agent (must be on PATH)
- *   BRAIN_DUMP_AGENT_TIMEOUT_MS — default: 180000
- *   BRAIN_DUMP_MAX_RAW_BYTES — default: 98304 (96 KiB)
- *   BRAIN_DUMP_DEBUG=1 — verbose stderr logs (full parsed JSON preview up to ~8 KiB)
- *
- * Auth: inherit process.env (CURSOR_API_KEY and/or `agent login` session).
+ *   VITE_BRAIN_DUMP_PROXY_URL — set in the app's .env.local (this script does not read it).
+ *   BRAIN_DUMP_AI=0 — skip the model; return a single stub task (no API key needed).
+ *   CURSOR_API_KEY — required when BRAIN_DUMP_AI is not 0 (user or service-account key).
+ *   BRAIN_DUMP_PROXY_PORT — listen port (default 8787).
+ *   BRAIN_DUMP_AGENT_TIMEOUT_MS — max wait for one SDK run (default 180000).
+ *   BRAIN_DUMP_MAX_RAW_BYTES — max `raw` body size (default 96 KiB).
+ *   BRAIN_DUMP_DEBUG=1 — verbose stderr logs when parse/normalize fails.
+ *   BRAIN_DUMP_MODEL_ID — model id passed to the agent (default composer-2).
  */
 
-import { spawn } from 'node:child_process';
+import {
+  Agent,
+  AuthenticationError,
+  ConfigurationError,
+  CursorAgentError,
+  NetworkError,
+  RateLimitError,
+} from '@cursor/sdk';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,8 +37,7 @@ const REPO_ROOT = join(__dirname, '..');
 const PORT = Number(process.env.BRAIN_DUMP_PROXY_PORT || 8787);
 const MAX_RAW_BYTES = Number(process.env.BRAIN_DUMP_MAX_RAW_BYTES || 96 * 1024);
 const AGENT_TIMEOUT_MS = Number(process.env.BRAIN_DUMP_AGENT_TIMEOUT_MS || 180_000);
-const MAX_STDOUT_BYTES = 4 * 1024 * 1024;
-const AGENT_BIN = process.env.BRAIN_DUMP_AGENT_BIN || 'agent';
+const MODEL_ID = String(process.env.BRAIN_DUMP_MODEL_ID || 'composer-2').trim() || 'composer-2';
 
 const SYSTEM_PROMPT = readFileSync(join(__dirname, 'brain-dump-system-prompt.txt'), 'utf8');
 
@@ -39,25 +46,25 @@ function brainDumpDebug() {
   return v === '1' || v === 'true' || v === 'yes';
 }
 
-/** Log why stdout did not become `{ tasks: [...] }` (always logs a short summary to the proxy terminal). */
-function logAgentOutputParseFailure(stdout, stderr) {
+/** Log why assistant text did not become `{ tasks: [...] }` (always logs a short summary to the proxy terminal). */
+function logModelOutputParseFailure(text, stderr) {
   const dbg = brainDumpDebug();
-  const rawOut = typeof stdout === 'string' ? stdout : '';
+  const rawOut = typeof text === 'string' ? text : '';
   const stripped = stripJsonFences(rawOut.trim());
-  console.error('[brain-dump-proxy] Parse failure: no usable { tasks: [...] } in agent output.');
+  console.error('[brain-dump-proxy] Parse failure: no usable { tasks: [...] } in model output.');
   if (stderr && String(stderr).trim()) {
-    console.error('[brain-dump-proxy] agent stderr (first 4k chars):\n', String(stderr).slice(0, 4000));
+    console.error('[brain-dump-proxy] stderr (first 4k chars):\n', String(stderr).slice(0, 4000));
   }
   console.error(
-    `[brain-dump-proxy] stdout bytes: ${Buffer.byteLength(rawOut, 'utf8')}; after fence-strip: ${stripped.length} chars`,
+    `[brain-dump-proxy] output bytes: ${Buffer.byteLength(rawOut, 'utf8')}; after fence-strip: ${stripped.length} chars`,
   );
   if (!stripped) {
-    console.error('[brain-dump-proxy] stdout is empty after trim / fence strip.');
+    console.error('[brain-dump-proxy] output is empty after trim / fence strip.');
     return;
   }
-  console.error('[brain-dump-proxy] stdout head (500 chars):\n', stripped.slice(0, 500));
+  console.error('[brain-dump-proxy] output head (500 chars):\n', stripped.slice(0, 500));
   if (stripped.length > 700) {
-    console.error('[brain-dump-proxy] stdout tail (300 chars):\n', stripped.slice(-300));
+    console.error('[brain-dump-proxy] output tail (300 chars):\n', stripped.slice(-300));
   }
 
   let root = null;
@@ -152,7 +159,7 @@ function findTasksPayload(obj, depth = 0) {
   return obj;
 }
 
-/** Cursor `--output-format json` often wraps the model answer in `{ type, result }` where `result` is a JSON string. */
+/** Cursor CLI JSON envelope shape; model may still emit this inside assistant text. */
 function tryParseEmbeddedJsonString(s) {
   if (typeof s !== 'string') return null;
   const t = s.trim();
@@ -164,7 +171,7 @@ function tryParseEmbeddedJsonString(s) {
   }
 }
 
-function parseAgentStdout(stdout) {
+function parseTasksFromModelText(stdout) {
   const stripped = stripJsonFences(stdout);
   let root;
   try {
@@ -203,6 +210,12 @@ function clampMinutes(n) {
   return Math.max(15, x);
 }
 
+function clampSubtaskMinutes(n) {
+  const x = Math.round(Number(n));
+  if (!Number.isFinite(x)) return 1;
+  return Math.max(1, x);
+}
+
 function normalizeSubtasks(raw) {
   if (!Array.isArray(raw)) return undefined;
   const out = [];
@@ -212,7 +225,7 @@ function normalizeSubtasks(raw) {
     if (typeof labelRaw !== 'string') continue;
     const label = labelRaw.trim();
     if (!label) continue;
-    out.push({ label, durationMinutes: clampMinutes(item.durationMinutes) });
+    out.push({ label, durationMinutes: clampSubtaskMinutes(item.durationMinutes) });
   }
   return out.length > 0 ? out : undefined;
 }
@@ -252,79 +265,73 @@ function normalizeWireTasks(tasks) {
   return out.length > 0 ? { tasks: out } : null;
 }
 
-function collectStream(stream, maxBytes) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let len = 0;
-    stream.on('data', (c) => {
-      len += c.length;
-      if (len > maxBytes) {
-        stream.destroy();
-        reject(new Error('Agent stdout exceeded size cap'));
-        return;
-      }
-      chunks.push(c);
-    });
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    stream.on('error', reject);
+/**
+ * @returns {Promise<{ stdout: string, stderr: string }>}
+ */
+async function runSdkBrainDump(fullPrompt) {
+  const apiKey = String(process.env.CURSOR_API_KEY || '').trim();
+  if (!apiKey) {
+    const err = new Error('CURSOR_API_KEY is not set');
+    err.code = 'missing_api_key';
+    throw err;
+  }
+
+  const agent = await Agent.create({
+    apiKey,
+    model: { id: MODEL_ID },
+    local: { cwd: REPO_ROOT },
+    name: 'polyhue-brain-dump',
   });
+
+  try {
+    const run = await agent.send(fullPrompt);
+    let timeoutId;
+    try {
+      timeoutId = setTimeout(async () => {
+        try {
+          if (run.supports('cancel')) await run.cancel();
+        } catch {
+          /* ignore */
+        }
+      }, AGENT_TIMEOUT_MS);
+
+      const result = await run.wait();
+
+      if (result.status === 'cancelled') {
+        const err = new Error('Agent timed out');
+        err.code = 'timeout';
+        throw err;
+      }
+      if (result.status === 'error') {
+        const err = new Error(result.result?.trim() || 'Agent run failed');
+        err.code = 'run_error';
+        throw err;
+      }
+
+      const text = typeof result.result === 'string' ? result.result : '';
+      return { stdout: text, stderr: '' };
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+  } finally {
+    try {
+      await agent[Symbol.asyncDispose]();
+    } catch (e) {
+      console.error('[brain-dump-proxy] agent dispose failed:', e instanceof Error ? e.message : String(e));
+    }
+  }
 }
 
-function runAgentJsonPrompt(fullPrompt) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      AGENT_BIN,
-      ['-p', '--mode', 'ask', '--output-format', 'json', fullPrompt],
-      {
-        cwd: REPO_ROOT,
-        env: process.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      },
-    );
-
-    let timer;
-    let settled = false;
-    const settle = (err, val) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      if (err) reject(err);
-      else resolve(val);
-    };
-
-    const stdoutP = collectStream(child.stdout, MAX_STDOUT_BYTES);
-    const stderrP = collectStream(child.stderr, 64 * 1024);
-
-    timer = setTimeout(() => {
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* ignore */
-      }
-      settle(new Error('Agent timed out'));
-    }, AGENT_TIMEOUT_MS);
-
-    child.on('error', (err) => {
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* ignore */
-      }
-      settle(err);
-    });
-
-    child.on('close', (code) => {
-      Promise.all([stdoutP, stderrP])
-        .then(([stdout, stderr]) => {
-          if (code !== 0 && code !== null) {
-            settle(new Error(stderr.trim() || `Agent exited with code ${code}`));
-            return;
-          }
-          settle(null, { stdout, stderr });
-        })
-        .catch((e) => settle(e));
-    });
-  });
+function httpStatusForSdkError(err) {
+  if (err && typeof err === 'object' && err.code === 'missing_api_key') return [503, err.message];
+  if (err && typeof err === 'object' && err.code === 'timeout') return [504, err.message];
+  if (err && typeof err === 'object' && err.code === 'run_error') return [502, err.message];
+  if (err instanceof AuthenticationError) return [401, err.message];
+  if (err instanceof RateLimitError) return [429, err.message];
+  if (err instanceof ConfigurationError) return [400, err.message];
+  if (err instanceof NetworkError) return [503, err.message];
+  if (err instanceof CursorAgentError) return [502, err.message];
+  return [502, err instanceof Error ? err.message : String(err)];
 }
 
 function stubTasksFromRaw(raw) {
@@ -388,38 +395,28 @@ const server = http.createServer(async (req, res) => {
 
     let agentOut;
     try {
-      agentOut = await runAgentJsonPrompt(fullPrompt);
+      agentOut = await runSdkBrainDump(fullPrompt);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error('[brain-dump-proxy] agent spawn/run error:', msg);
-      const isSpawn = /ENOENT|ENOTDIR/.test(msg);
-      res.writeHead(isSpawn ? 503 : 502, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: isSpawn
-            ? `Could not run "${AGENT_BIN}". Install Cursor CLI and ensure it is on PATH, or set BRAIN_DUMP_AI=0 for a stub response.`
-            : `Brain dump agent failed: ${msg}`,
-        }),
-      );
+      const [status, msg] = httpStatusForSdkError(e);
+      console.error('[brain-dump-proxy] SDK error:', msg);
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: msg }));
       return;
     }
 
     const { stdout, stderr } = agentOut;
     if (brainDumpDebug()) {
-      console.error(
-        '[brain-dump-proxy] BRAIN_DUMP_DEBUG: agent stderr length:',
-        stderr?.length ?? 0,
-      );
+      console.error('[brain-dump-proxy] BRAIN_DUMP_DEBUG: assistant text length:', stdout?.length ?? 0);
     }
 
-    const parsed = parseAgentStdout(stdout);
+    const parsed = parseTasksFromModelText(stdout);
     if (!parsed) {
-      logAgentOutputParseFailure(stdout, stderr);
+      logModelOutputParseFailure(stdout, stderr);
       res.writeHead(502, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           error:
-            'Agent did not return valid JSON with a "tasks" array. Check the terminal where brain-dump-proxy is running for [brain-dump-proxy] logs; set BRAIN_DUMP_DEBUG=1 for more detail.',
+            'Model did not return valid JSON with a "tasks" array. Check the terminal where brain-dump-proxy is running for [brain-dump-proxy] logs; set BRAIN_DUMP_DEBUG=1 for more detail.',
         }),
       );
       return;
@@ -448,6 +445,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(
-    `brain-dump proxy at http://127.0.0.1:${PORT} (POST /brain-dump; BRAIN_DUMP_AI=0 for stub; BRAIN_DUMP_DEBUG=1 for verbose parse logs)`,
+    `brain-dump proxy at http://127.0.0.1:${PORT} (POST /brain-dump; model ${MODEL_ID}; BRAIN_DUMP_AI=0 for stub; CURSOR_API_KEY for AI; BRAIN_DUMP_DEBUG=1 for verbose parse logs)`,
   );
 });

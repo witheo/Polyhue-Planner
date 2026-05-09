@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 
-import { minutesFromDurationInput } from '../domain/durations';
+import {
+  MIN_TASK_DURATION_MINUTES,
+  minutesFromDurationInput,
+  minutesFromSubtaskDurationInput,
+  sanitizeDurationDigits,
+} from '../domain/durations';
 import { formatTime } from '../domain/time';
 import {
   BADGE_SWATCHES,
@@ -22,6 +27,7 @@ export function TaskDetailPanel() {
   const updateTaskDuration = usePlannerStore((s) => s.updateTaskDuration);
   const updateTaskCategory = usePlannerStore((s) => s.updateTaskCategory);
   const updateTaskBadge = usePlannerStore((s) => s.updateTaskBadge);
+  const updateTaskSubtasks = usePlannerStore((s) => s.updateTaskSubtasks);
   const removeTask = usePlannerStore((s) => s.removeTask);
 
   const task = usePlannerStore((s) =>
@@ -34,6 +40,10 @@ export function TaskDetailPanel() {
   const [titleDraft, setTitleDraft] = useState('');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [durationDraft, setDurationDraft] = useState('30');
+  const [subtaskLabelDrafts, setSubtaskLabelDrafts] = useState<string[]>([]);
+  const [subtaskDurationDrafts, setSubtaskDurationDrafts] = useState<string[]>([]);
+
+  const subtasksSig = task ? JSON.stringify(task.subtasks ?? []) : '';
 
   useEffect(() => {
     if (!task) return;
@@ -43,6 +53,16 @@ export function TaskDetailPanel() {
     // Narrow deps so unrelated Zustand task reference churn does not reset drafts mid-edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync drafts when persisted task fields change
   }, [task?.id, task?.durationMinutes, task?.title, task?.description, task?.subtasks, task?.category]);
+
+  useEffect(() => {
+    if (!task?.subtasks?.length) {
+      setSubtaskLabelDrafts([]);
+      setSubtaskDurationDrafts([]);
+      return;
+    }
+    setSubtaskLabelDrafts(task.subtasks.map((s) => s.label));
+    setSubtaskDurationDrafts(task.subtasks.map((s) => String(s.durationMinutes)));
+  }, [task?.id, subtasksSig]);
 
   const open = Boolean(detailTaskId && task);
 
@@ -79,6 +99,55 @@ export function TaskDetailPanel() {
     const prev = task.description ?? '';
     if (next === prev) return;
     updateTaskDescription(task.id, next);
+  };
+
+  const focusDetailSubtaskRow = (taskId: string, index: number) => {
+    requestAnimationFrame(() => {
+      document.getElementById(`ph-detail-subtask-${taskId}-${index}`)?.focus();
+    });
+  };
+
+  const focusDetailSubtaskTitleInput = (taskId: string, index: number) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(
+        `ph-detail-subtask-title-${taskId}-${index}`,
+      ) as HTMLInputElement | null;
+      if (!el) return;
+      el.focus();
+      el.select();
+    });
+  };
+
+  const moveSubtask = (index: number, direction: 'up' | 'down') => {
+    const list = task.subtasks;
+    if (!list?.length) return;
+    const j = direction === 'up' ? index - 1 : index + 1;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[index], next[j]] = [next[j]!, next[index]!];
+    updateTaskSubtasks(task.id, next);
+    focusDetailSubtaskRow(task.id, j);
+  };
+
+  const addSubtask = () => {
+    const current = task.subtasks ?? [];
+    const next = [
+      ...current,
+      { label: 'New step', durationMinutes: MIN_TASK_DURATION_MINUTES },
+    ];
+    updateTaskSubtasks(task.id, next);
+    focusDetailSubtaskTitleInput(task.id, next.length - 1);
+  };
+
+  const removeSubtask = (index: number) => {
+    const list = task.subtasks;
+    if (!list?.length) return;
+    const next = list.filter((_, i) => i !== index);
+    updateTaskSubtasks(task.id, next);
+    if (next.length > 0) {
+      const focusIdx = Math.min(index, next.length - 1);
+      focusDetailSubtaskRow(task.id, focusIdx);
+    }
   };
 
   return (
@@ -155,23 +224,171 @@ export function TaskDetailPanel() {
             </select>
           </label>
 
-          {task.subtasks && task.subtasks.length > 0 ? (
-            <section className="ph-detail-subtasks" aria-labelledby="ph-detail-subtasks-heading">
-              <h3 className="ph-detail-subtasks__title" id="ph-detail-subtasks-heading">
-                Subtasks
-              </h3>
-              <ol className="ph-detail-subtasks__list">
-                {task.subtasks.map((s, i) => (
-                  <li key={`${i}-${s.label}`} className="ph-detail-subtasks__item">
-                    <span className="ph-detail-subtasks__label">{s.label}</span>
-                    <span className="ph-detail-subtasks__mins">{s.durationMinutes} min</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : null}
+          <section className="ph-detail-subtasks" aria-labelledby="ph-detail-subtasks-heading">
+            <h3 className="ph-detail-subtasks__title" id="ph-detail-subtasks-heading">
+              Subtasks
+            </h3>
+            {task.subtasks && task.subtasks.length > 0 ? (
+              <>
+                <p id="ph-detail-subtasks-list-desc" className="ph-sr-only">
+                  Steps are ordered. Edit titles and minutes; move steps up or down to reorder, or
+                  remove a step.
+                </p>
+                <ol
+                  className="ph-detail-subtasks__list"
+                  aria-describedby="ph-detail-subtasks-list-desc"
+                >
+                  {task.subtasks.map((s, i) => {
+                    const total = task.subtasks!.length;
+                    const labelVal = subtaskLabelDrafts[i] ?? s.label;
+                    const durVal = subtaskDurationDrafts[i] ?? String(s.durationMinutes);
+                    return (
+                      <li
+                        key={`${task.id}-sub-slot-${i}`}
+                        id={`ph-detail-subtask-${task.id}-${i}`}
+                        tabIndex={-1}
+                        className="ph-detail-subtasks__item"
+                        aria-setsize={total}
+                        aria-posinset={i + 1}
+                      >
+                        <div className="ph-detail-subtasks__fields">
+                          <label className="ph-detail-subtasks__field ph-detail-subtasks__field--grow">
+                            <span className="ph-field__label">
+                              Step {i + 1} title
+                            </span>
+                            <input
+                              id={`ph-detail-subtask-title-${task.id}-${i}`}
+                              type="text"
+                              className="ph-input ph-detail-subtasks__title-input"
+                              value={labelVal}
+                              aria-label={`Subtask ${i + 1} of ${total}, title`}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSubtaskLabelDrafts((prev) => {
+                                  const copy = [...prev];
+                                  copy[i] = v;
+                                  return copy;
+                                });
+                              }}
+                              onBlur={() => {
+                                const trimmed = labelVal.trim();
+                                if (!trimmed) {
+                                  setSubtaskLabelDrafts((prev) => {
+                                    const copy = [...prev];
+                                    copy[i] = s.label;
+                                    return copy;
+                                  });
+                                  return;
+                                }
+                                if (trimmed === s.label) return;
+                                const next = [...task.subtasks!];
+                                next[i] = { ...next[i]!, label: trimmed };
+                                updateTaskSubtasks(task.id, next);
+                              }}
+                            />
+                          </label>
+                          <label className="ph-detail-subtasks__field ph-detail-subtasks__field--mins">
+                            <span className="ph-field__label">Minutes</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              className="ph-input ph-detail-subtasks__mins-input"
+                              value={durVal}
+                              aria-label={`Subtask ${i + 1} of ${total}, minutes`}
+                              onFocus={(e) => e.currentTarget.select()}
+                              onChange={(e) => {
+                                const raw = sanitizeDurationDigits(e.target.value);
+                                setSubtaskDurationDrafts((prev) => {
+                                  const copy = [...prev];
+                                  copy[i] = raw;
+                                  return copy;
+                                });
+                              }}
+                              onBlur={() => {
+                                const m = minutesFromSubtaskDurationInput(durVal, s.durationMinutes);
+                                const shown = String(m);
+                                setSubtaskDurationDrafts((prev) => {
+                                  const copy = [...prev];
+                                  copy[i] = shown;
+                                  return copy;
+                                });
+                                if (m !== s.durationMinutes) {
+                                  const next = [...task.subtasks!];
+                                  next[i] = { ...next[i]!, durationMinutes: m };
+                                  updateTaskSubtasks(task.id, next);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <span
+                          className="ph-detail-subtasks__row-controls"
+                          role="group"
+                          aria-label={`Step ${i + 1} of ${total} controls`}
+                        >
+                          <span
+                            className="ph-detail-subtasks__reorder"
+                            role="group"
+                            aria-label={`Reorder step ${i + 1} of ${total}`}
+                          >
+                            <button
+                              type="button"
+                              className="ph-icon-btn ph-detail-subtasks__reorder-btn"
+                              aria-label={`Move step ${i + 1} up`}
+                              disabled={i === 0}
+                              onClick={() => moveSubtask(i, 'up')}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="ph-icon-btn ph-detail-subtasks__reorder-btn"
+                              aria-label={`Move step ${i + 1} down`}
+                              disabled={i === total - 1}
+                              onClick={() => moveSubtask(i, 'down')}
+                            >
+                              ↓
+                            </button>
+                          </span>
+                          <button
+                            type="button"
+                            className="ph-icon-btn ph-detail-subtasks__remove-btn"
+                            aria-label={`Remove step ${i + 1}`}
+                            title="Remove step"
+                            onClick={() => removeSubtask(i)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </>
+            ) : (
+              <p className="ph-detail-subtasks__empty">No steps yet.</p>
+            )}
+            <button
+              type="button"
+              className="ph-btn ph-detail-subtasks__add"
+              onClick={addSubtask}
+            >
+              + Add subtask
+            </button>
+          </section>
 
-          <DurationPicker id="ph-detail-duration" value={durationDraft} onChange={onDurationChange} />
+          <DurationPicker
+            id="ph-detail-duration"
+            value={durationDraft}
+            onChange={onDurationChange}
+            disabled={Boolean(task.subtasks?.length)}
+            fieldLabel={
+              task.subtasks?.length
+                ? `Total minutes (sum of ${task.subtasks.length} steps, min ${MIN_TASK_DURATION_MINUTES})`
+                : undefined
+            }
+          />
 
           <section className="ph-detail-badge-section" aria-labelledby="ph-detail-badge-heading">
             <h3 className="ph-detail-badge-section__title" id="ph-detail-badge-heading">

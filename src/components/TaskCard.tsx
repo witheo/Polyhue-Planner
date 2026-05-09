@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CSSProperties, RefCallback } from 'react';
 
 import { draggableTaskId } from '../dndIds';
+import { taskDurationMinutesEffective } from '../domain/durations';
 import { laneCardHeightPx } from '../domain/laneLayout';
 import { badgeRingForTask, badgeSidesForTask } from '../domain/taskBadge';
 import type { Task } from '../domain/types';
@@ -66,7 +67,7 @@ function TaskCardChrome({
     ...(variant === 'lane'
       ? laneStyle
       : {
-          height: laneCardHeightPx(task.durationMinutes),
+          height: laneCardHeightPx(taskDurationMinutesEffective(task)),
         }),
     ...style,
     opacity: isDragging ? 0.22 : style.opacity ?? 1,

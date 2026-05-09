@@ -1,4 +1,4 @@
-import { MIN_TASK_DURATION_MINUTES } from './durations';
+import { MIN_TASK_DURATION_MINUTES, subtaskDurationMinutesFromUnknown } from './durations';
 import { normalizeTaskCategory } from './taskCategories';
 import type { TaskCategory, TaskSubtask } from './types';
 
@@ -89,7 +89,7 @@ function parseSubtasksFromProviderTask(raw: Record<string, unknown>): TaskSubtas
     if (typeof labelRaw !== 'string') continue;
     const label = labelRaw.trim();
     if (!label) continue;
-    const durationMinutes = clampDurationMinutes(
+    const durationMinutes = subtaskDurationMinutesFromUnknown(
       'durationMinutes' in item ? item.durationMinutes : undefined,
     );
     out.push({ label, durationMinutes });

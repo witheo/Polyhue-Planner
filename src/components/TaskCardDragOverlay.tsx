@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 
+import { taskDurationMinutesEffective } from '../domain/durations';
 import { laneCardHeightPx } from '../domain/laneLayout';
 import { badgeRingForTask, badgeSidesForTask } from '../domain/taskBadge';
 import type { Task } from '../domain/types';
@@ -17,7 +18,7 @@ const ACCENT_BORDER = '6px';
 export function TaskCardDragOverlay({ task }: Props) {
   const accent = badgeRingForTask(task);
   const style: CSSProperties = {
-    height: laneCardHeightPx(task.durationMinutes),
+    height: laneCardHeightPx(taskDurationMinutesEffective(task)),
     borderLeft: `${ACCENT_BORDER} solid ${accent}`,
     borderTop: `${ACCENT_BORDER} solid ${accent}`,
   };

@@ -1,4 +1,4 @@
-import { minutesFromDurationInput } from './durations';
+import { minutesFromDurationInput, taskDurationMinutesEffective } from './durations';
 import type { TaskCategory, TaskSubtask } from './types';
 
 /** Draft row shape needed to build store inputs (matches dialog `DraftRow` fields used on apply). */
@@ -33,7 +33,14 @@ export function addTaskInputsFromApplyableDraftRows(
   for (const row of rows) {
     const title = row.title.trim();
     if (!title) continue;
-    const durationMinutes = minutesFromDurationInput(row.durationInput, row.durationMinutes);
+    const parsedDuration = minutesFromDurationInput(row.durationInput, row.durationMinutes);
+    const durationMinutes =
+      row.subtasks !== undefined && row.subtasks.length > 0
+        ? taskDurationMinutesEffective({
+            durationMinutes: parsedDuration,
+            subtasks: row.subtasks,
+          })
+        : parsedDuration;
     out.push({
       title,
       durationMinutes,

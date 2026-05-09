@@ -64,7 +64,7 @@ describe('parseTaskDraftsFromProviderPayload', () => {
     expect(r.drafts[0].category).toBe('finance');
   });
 
-  it('parses optional subtasks with clamped minutes', () => {
+  it('parses optional subtasks preserving short step minutes', () => {
     const r = parseTaskDraftsFromProviderPayload({
       tasks: [
         {
@@ -80,7 +80,7 @@ describe('parseTaskDraftsFromProviderPayload', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.drafts[0].subtasks).toEqual([
-      { label: 'Tag', durationMinutes: MIN_TASK_DURATION_MINUTES },
+      { label: 'Tag', durationMinutes: 5 },
       { label: 'Deploy', durationMinutes: 45 },
     ]);
   });

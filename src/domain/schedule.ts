@@ -1,4 +1,4 @@
-import { MIN_TASK_DURATION_MINUTES } from './durations';
+import { taskDurationMinutesEffective } from './durations';
 import type { ScheduledBlock, Task, TaskId } from './types';
 import { MINUTES_IN_DAY, clampMinuteOfDay, snapMinutes } from './time';
 
@@ -9,7 +9,7 @@ export type BlockSpan = {
 };
 
 export function taskEndMinute(task: Task, startMinute: number): number {
-  return startMinute + Math.max(MIN_TASK_DURATION_MINUTES, task.durationMinutes);
+  return startMinute + taskDurationMinutesEffective(task);
 }
 
 export function spansOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {

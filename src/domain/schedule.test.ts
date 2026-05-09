@@ -7,6 +7,7 @@ import {
   resolveDropStart,
   resolveDropStartForDate,
   spansOverlap,
+  taskEndMinute,
 } from './schedule';
 import type { ScheduledBlock, Task } from './types';
 
@@ -21,6 +22,23 @@ function task(id: string, durationMinutes: number): Task {
     createdAt: '2026-01-01T00:00:00.000Z',
   };
 }
+
+describe('taskEndMinute', () => {
+  it('uses rolled-up duration when subtasks are present', () => {
+    const t: Task = {
+      id: 'x',
+      title: 'x',
+      durationMinutes: 15,
+      subtasks: [
+        { label: 'a', durationMinutes: 10 },
+        { label: 'b', durationMinutes: 20 },
+      ],
+      status: 'backlog',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    expect(taskEndMinute(t, 100)).toBe(130);
+  });
+});
 
 describe('spansOverlap', () => {
   it('returns false when one interval ends exactly as the other starts', () => {

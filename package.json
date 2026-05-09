@@ -7,13 +7,15 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
+    "dev:with-proxy": "sh scripts/run-dev-with-proxy.sh",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview",
-    "brain-dump-proxy": "node scripts/brain-dump-proxy.mjs"
+    "brain-dump-proxy": "sh scripts/run-brain-dump-proxy.sh"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.12",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -26,6 +28,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",
