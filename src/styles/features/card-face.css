@@ -1,0 +1,63 @@
+/* Decorative doodle face on task cards (spike #17, enabled with ?faces=1). */
+.ph-card__face {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+  /* currentColor drives every stroke/fill, so one asset works in light and dark themes. */
+  color: var(--ph-face-accent, var(--ph-muted));
+  opacity: 0.7;
+}
+
+.ph-card__face-eye {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ph-face-blink 4.5s infinite;
+}
+
+.ph-card__face-eye--right {
+  animation-delay: 0.04s;
+}
+
+.ph-card__face-smile {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ph-face-smile 4.5s infinite;
+}
+
+@keyframes ph-face-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes ph-face-smile {
+  0%,
+  60%,
+  100% {
+    transform: scaleX(1);
+  }
+  70%,
+  80% {
+    transform: scaleX(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-card__face-eye,
+  .ph-card__face-smile {
+    animation: none;
+  }
+}

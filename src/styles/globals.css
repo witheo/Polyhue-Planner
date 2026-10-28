@@ -8,6 +8,7 @@
 @import './features/brain-dump-import.css';
 @import './features/task-detail.css';
 @import './features/task-card.css';
+@import './features/card-face.css';
 @import './features/schedule-lane-surface.css';
 @import './features/action-notice.css';
 @import './features/backup-controls.css';
