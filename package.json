@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview",
-    "brain-dump-proxy": "sh scripts/run-brain-dump-proxy.sh"
+    "brain-dump-proxy": "sh scripts/run-brain-dump-proxy.sh",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.12",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
