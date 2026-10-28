@@ -120,10 +120,26 @@ const initialTasks = initial?.tasks?.length
   ? clampTaskDurations(reconcileTasks(initial.tasks as Task[], initialBlocks))
   : [];
 
+/** Feedback for an action that had no effect. `id` changes on every notice so repeats re-announce. */
+export type ActionNotice = { id: number; message: string };
+
+export const NOTICE_NO_FREE_SLOT = 'No free slot at that time';
+export const NOTICE_DURATION_NO_FIT = 'That duration does not fit without overlapping other blocks';
+export const NOTICE_SUBTASKS_NO_FIT = 'Those subtask times do not fit without overlapping other blocks';
+export const NOTICE_OUTSIDE_WINDOW = 'That day is outside the planning window';
+
+let noticeSeq = 0;
+function newNotice(message: string): { notice: ActionNotice } {
+  noticeSeq += 1;
+  return { notice: { id: noticeSeq, message } };
+}
+
 type Store = {
   tasks: Task[];
   blocks: ScheduledBlock[];
   detailTaskId: TaskId | null;
+  notice: ActionNotice | null;
+  dismissNotice: () => void;
   openTaskDetail: (id: TaskId) => void;
   closeTaskDetail: () => void;
   addTask: (input: {
@@ -176,6 +192,9 @@ export const usePlannerStore = create<Store>((set, get) => ({
   tasks: initialTasks,
   blocks: initialBlocks,
   detailTaskId: null,
+  notice: null,
+
+  dismissNotice: () => set({ notice: null }),
 
   openTaskDetail: (id) => {
     if (!get().tasks.some((t) => t.id === id)) return;
@@ -373,7 +392,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
           excludeTaskId: id,
         },
       );
-      if (newStart === null) return s;
+      if (newStart === null) return newNotice(NOTICE_SUBTASKS_NO_FIT);
 
       blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart, scheduledDate: date };
       return { tasks, blocks };
@@ -414,7 +433,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
           excludeTaskId: id,
         },
       );
-      if (newStart === null) return s;
+      if (newStart === null) return newNotice(NOTICE_DURATION_NO_FIT);
 
       blocks[blockIdx] = { taskId: id, startMinuteOfDay: newStart, scheduledDate: date };
       return { tasks, blocks };
@@ -431,7 +450,10 @@ export const usePlannerStore = create<Store>((set, get) => ({
 
   dropOnSchedule: (taskId, scheduledDate, clientY, columnContentRect) => {
     const { rangeStart, rangeEnd } = getPlanningWindowBounds();
-    if (scheduledDate < rangeStart || scheduledDate > rangeEnd) return;
+    if (scheduledDate < rangeStart || scheduledDate > rangeEnd) {
+      set(newNotice(NOTICE_OUTSIDE_WINDOW));
+      return;
+    }
 
     const { tasks, blocks } = get();
     const start = computeResolvedScheduleStart(
@@ -442,7 +464,10 @@ export const usePlannerStore = create<Store>((set, get) => ({
       tasks,
       blocks,
     );
-    if (start === null) return;
+    if (start === null) {
+      set(newNotice(NOTICE_NO_FREE_SLOT));
+      return;
+    }
 
     const nextBlocks = blocks.filter((b) => b.taskId !== taskId);
     nextBlocks.push({ taskId, startMinuteOfDay: start, scheduledDate });

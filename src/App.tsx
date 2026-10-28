@@ -16,6 +16,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
+import { ActionNotice } from './components/ActionNotice';
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
 import { ScheduleLane } from './components/ScheduleLane';
 import { backlogTaskIdsInStoreOrder } from './domain/reorderBacklogTasks';
@@ -188,6 +189,7 @@ export default function App() {
             <ScheduleLane />
           </main>
           <TaskDetailPanel />
+          <ActionNotice />
         </div>
       </ScheduleDropPreviewContext.Provider>
       <DragOverlay
