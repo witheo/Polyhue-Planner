@@ -77,6 +77,21 @@ The header has **Export** and **Import** buttons for moving a plan between brows
 - Backlog and lane cards share the same **height-from-duration** scale (`src/domain/laneLayout.ts`): **1px per minute**, no extra height floor (short tasks are very thin on the lane).
 - **Click the ticket title** (link styling) to open the **right-hand detail flyover** (title, duration, scheduled time, delete). Lane tickets have no inline duration or × — use the panel to edit or remove.
 
+## Accessibility
+
+Baseline, checked in CI with [axe](https://github.com/dequelabs/axe-core) (WCAG 2.1 A/AA) over the empty planner, a populated planner, the task detail panel and the brain-dump dialog (`e2e/a11y.spec.ts`):
+
+- Cards are focusable `group`s (not buttons, since they contain buttons); the title opens details, and the up/down/remove buttons are labelled per task.
+- The backlog can be reordered from the keyboard with the **Move up / Move down** buttons.
+- The scrollable schedule panel is focusable so it can be scrolled with the keyboard.
+- Rejected drops and duration changes are announced through a polite `aria-live` region.
+
+Known limitations and the next increment:
+
+- **No keyboard path to schedule a task.** dnd-kit's keyboard sensor lifts a card, but arrow keys never change the drop target (backlog or lane), so drag-and-drop is pointer-only. Next: a "Schedule…" action on each card (pick day and start time) that calls the same store drop logic.
+- **Drag announcements are raw ids.** dnd-kit's default live region reads internal ids ("Draggable item task-… was dropped over …"). Next: custom `accessibility.announcements` and screen-reader instructions on `DndContext` using task titles and day/time.
+- Colour contrast of the ticket accents has not been audited beyond what axe checks in the states above.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
