@@ -71,6 +71,47 @@ describe('placementValid', () => {
   });
 });
 
+describe('minStartMinute', () => {
+  const tA = task('a', 60);
+  const tB = task('b', 60);
+  const map = new Map<string, Task>([
+    ['a', tA],
+    ['b', tB],
+  ]);
+
+  it('rejects a start before the minimum even when nothing overlaps', () => {
+    expect(placementValid(tB, 240, [], map, 'b', 300)).toBe(false);
+    expect(placementValid(tB, 300, [], map, 'b', 300)).toBe(true);
+  });
+
+  it('defaults to midnight, so early starts stay valid', () => {
+    expect(placementValid(tB, 0, [], map, 'b')).toBe(true);
+  });
+
+  it('never resolves a drop to a slot before the minimum', () => {
+    // 5:00-6:00 is taken; the nearest free slot below would be 4:00, which the lane does not show.
+    const blocks: ScheduledBlock[] = [{ taskId: 'a', startMinuteOfDay: 300, scheduledDate: D }];
+    const start = resolveDropStart(tB, 300, blocks, map, {
+      snapStep: 15,
+      excludeTaskId: 'b',
+      minStartMinute: 300,
+    });
+    expect(start).toBe(360);
+  });
+
+  it('returns null when only slots before the minimum are free', () => {
+    const big = task('a', 1140);
+    const m = new Map<string, Task>([
+      ['a', big],
+      ['b', tB],
+    ]);
+    const blocks: ScheduledBlock[] = [{ taskId: 'a', startMinuteOfDay: 300, scheduledDate: D }];
+    expect(
+      resolveDropStart(tB, 400, blocks, m, { snapStep: 15, excludeTaskId: 'b', minStartMinute: 300 }),
+    ).toBeNull();
+  });
+});
+
 describe('resolveDropStart', () => {
   it('returns a nearby snapped slot when the exact slot is taken', () => {
     const tA = task('a', 60);

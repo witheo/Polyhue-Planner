@@ -78,6 +78,7 @@ function computeResolvedScheduleStart(
   return resolveDropStartForDate(task, rawStart, blocks, scheduledDate, map, {
     snapStep: 15,
     excludeTaskId: taskId,
+    minStartMinute: SCHEDULE_VIEW_START_MINUTE,
   });
 }
 
@@ -397,7 +398,17 @@ export const usePlannerStore = create<Store>((set, get) => ({
       const block = blocks[blockIdx]!;
       const date = block.scheduledDate;
 
-      if (placementValidForDate(updatedTask, block.startMinuteOfDay, blocks, date, map, id)) {
+      if (
+        placementValidForDate(
+          updatedTask,
+          block.startMinuteOfDay,
+          blocks,
+          date,
+          map,
+          id,
+          SCHEDULE_VIEW_START_MINUTE,
+        )
+      ) {
         return { tasks, blocks };
       }
 
@@ -410,6 +421,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
         {
           snapStep: 15,
           excludeTaskId: id,
+          minStartMinute: SCHEDULE_VIEW_START_MINUTE,
         },
       );
       if (newStart === null) return newNotice(NOTICE_SUBTASKS_NO_FIT);
@@ -438,7 +450,17 @@ export const usePlannerStore = create<Store>((set, get) => ({
       const block = blocks[blockIdx]!;
       const date = block.scheduledDate;
 
-      if (placementValidForDate(updatedTask, block.startMinuteOfDay, blocks, date, map, id)) {
+      if (
+        placementValidForDate(
+          updatedTask,
+          block.startMinuteOfDay,
+          blocks,
+          date,
+          map,
+          id,
+          SCHEDULE_VIEW_START_MINUTE,
+        )
+      ) {
         return { tasks, blocks };
       }
 
@@ -451,6 +473,7 @@ export const usePlannerStore = create<Store>((set, get) => ({
         {
           snapStep: 15,
           excludeTaskId: id,
+          minStartMinute: SCHEDULE_VIEW_START_MINUTE,
         },
       );
       if (newStart === null) return newNotice(NOTICE_DURATION_NO_FIT);

@@ -42,14 +42,20 @@ export function collectSpans(
   return out;
 }
 
+/**
+ * `minStartMinute` is the earliest allowed start (default: midnight). The schedule passes the
+ * first visible lane minute so a block can never be placed where the lane does not show it.
+ */
 export function placementValid(
   task: Task,
   desiredStart: number,
   blocks: ScheduledBlock[],
   taskById: Map<TaskId, Task>,
   excludeTaskId?: TaskId,
+  minStartMinute = 0,
 ): boolean {
   const start = clampMinuteOfDay(desiredStart);
+  if (start < minStartMinute) return false;
   const end = taskEndMinute(task, start);
   if (end > MINUTES_IN_DAY) return false;
   const spans = collectSpans(blocks, taskById, excludeTaskId ?? task.id);
@@ -63,9 +69,19 @@ export function placementValidForDate(
   scheduledDate: string,
   taskById: Map<TaskId, Task>,
   excludeTaskId?: TaskId,
+  minStartMinute = 0,
 ): boolean {
-  return placementValid(task, desiredStart, blocksOnDate(blocks, scheduledDate), taskById, excludeTaskId);
+  return placementValid(
+    task,
+    desiredStart,
+    blocksOnDate(blocks, scheduledDate),
+    taskById,
+    excludeTaskId,
+    minStartMinute,
+  );
 }
+
+export type DropOptions = { snapStep: number; excludeTaskId?: TaskId; minStartMinute?: number };
 
 export function resolveDropStartForDate(
   task: Task,
@@ -73,7 +89,7 @@ export function resolveDropStartForDate(
   blocks: ScheduledBlock[],
   scheduledDate: string,
   taskById: Map<TaskId, Task>,
-  options: { snapStep: number; excludeTaskId?: TaskId } = { snapStep: 15 },
+  options: DropOptions = { snapStep: 15 },
 ): number | null {
   return resolveDropStart(task, rawStartMinute, blocksOnDate(blocks, scheduledDate), taskById, options);
 }
@@ -86,17 +102,19 @@ export function resolveDropStart(
   rawStartMinute: number,
   blocks: ScheduledBlock[],
   taskById: Map<TaskId, Task>,
-  options: { snapStep: number; excludeTaskId?: TaskId } = { snapStep: 15 },
+  options: DropOptions = { snapStep: 15 },
 ): number | null {
   const snapped = snapMinutes(rawStartMinute, options.snapStep);
   const exclude = options.excludeTaskId ?? task.id;
-  if (placementValid(task, snapped, blocks, taskById, exclude)) return clampMinuteOfDay(snapped);
+  if (placementValid(task, snapped, blocks, taskById, exclude, options.minStartMinute)) return clampMinuteOfDay(snapped);
 
   const stride = options.snapStep;
   for (let delta = stride; delta <= 24 * 60; delta += stride) {
     for (const sign of [-1, 1] as const) {
       const candidate = clampMinuteOfDay(snapped + sign * delta);
-      if (placementValid(task, candidate, blocks, taskById, exclude)) return candidate;
+      if (placementValid(task, candidate, blocks, taskById, exclude, options.minStartMinute)) {
+        return candidate;
+      }
     }
   }
   return null;
