@@ -7,6 +7,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { CSSProperties, RefCallback } from 'react';
 
+import { CARD_FACES_ENABLED } from '../cardFacesFlag';
 import { draggableTaskId } from '../dndIds';
 import { taskDurationMinutesEffective } from '../domain/durations';
 import { laneCardHeightPx } from '../domain/laneLayout';
@@ -14,6 +15,7 @@ import { badgeRingForTask, badgeSidesForTask } from '../domain/taskBadge';
 import type { Task } from '../domain/types';
 import { usePlannerStore } from '../state/store';
 
+import { CardFace } from './CardFace';
 import { TicketBadgeFace } from './TaskCardAccentGrid';
 import { TaskTicketSubtasks } from './TaskTicketSubtasks';
 
@@ -185,6 +187,7 @@ function TaskCardChrome({
           )}
         </div>
       </div>
+      {CARD_FACES_ENABLED ? <CardFace accent={accent} /> : null}
     </div>
   );
 }
