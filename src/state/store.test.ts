@@ -64,11 +64,9 @@ describe('updateTaskDuration', () => {
   });
 
   it('rejects the change entirely when no free slot exists', () => {
-    // c (midnight to 5 AM) and b (6 AM to midnight) leave no room for a to grow or move.
-    seed(
-      [task('a', 60), task('b', 1080), task('c', 300)],
-      [block('a', 300), block('b', 360), block('c', 0)],
-    );
+    // b fills 6 AM to midnight, so a (5-6 AM) cannot grow; the only free time is before 5 AM,
+    // which the lane does not show.
+    seed([task('a', 60), task('b', 1080)], [block('a', 300), block('b', 360)]);
     const before = state();
     state().updateTaskDuration('a', 120);
 
@@ -83,9 +81,11 @@ describe('updateTaskDuration', () => {
     expect(state().notice).toBeNull();
   });
 
-  // Growing a block in a full lane currently moves it to 4:00 AM, above the visible lane
-  // (SCHEDULE_VIEW_START_MINUTE is 5:00 AM) because placement only bounds blocks to 0..1440.
-  it.todo('keeps a resized block inside the visible lane (5 AM to midnight)');
+  it('pulls a block saved above the visible lane into the lane when its duration changes', () => {
+    seed([task('a', 60)], [block('a', 240)]);
+    state().updateTaskDuration('a', 90);
+    expect(state().blocks[0]!.startMinuteOfDay).toBeGreaterThanOrEqual(300);
+  });
 
   it('ignores tasks whose duration is rolled up from subtasks', () => {
     const withSubtasks: Task = {
@@ -100,10 +100,7 @@ describe('updateTaskDuration', () => {
 
 describe('updateTaskSubtasks', () => {
   it('rejects the change with a notice when the rolled-up duration has no free slot', () => {
-    seed(
-      [task('a', 60), task('b', 1080), task('c', 300)],
-      [block('a', 300), block('b', 360), block('c', 0)],
-    );
+    seed([task('a', 60), task('b', 1080)], [block('a', 300), block('b', 360)]);
     const before = state();
     state().updateTaskSubtasks('a', [{ label: 'big', durationMinutes: 120 }]);
 
@@ -116,10 +113,7 @@ describe('dropOnSchedule', () => {
   const rect = { top: 0, height: 1140 } as DOMRect;
 
   it('sets a notice when there is no free slot at the drop time', () => {
-    seed(
-      [task('a', 120, 'backlog'), task('b', 1080), task('c', 300)],
-      [block('b', 360), block('c', 0)],
-    );
+    seed([task('a', 120, 'backlog'), task('b', 1140)], [block('b', 300)]);
     state().dropOnSchedule('a', TODAY, 400, rect);
 
     expect(state().blocks.some((b) => b.taskId === 'a')).toBe(false);
