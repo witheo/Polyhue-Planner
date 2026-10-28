@@ -1,0 +1,43 @@
+.ph-swatch-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+}
+
+.ph-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ph-swatch:hover {
+  transform: scale(1.1);
+}
+
+.ph-swatch:focus-visible {
+  outline: 2px solid rgba(108, 99, 255, 0.65);
+  outline-offset: 2px;
+}
+
+.ph-swatch--selected {
+  border-color: var(--ph-text);
+  outline: 2px solid rgba(108, 99, 255, 0.65);
+  outline-offset: 2px;
+}
+
+/* Composer row: label and swatches inline on their own line to keep the composer short. */
+.ph-field--color {
+  flex: 1 0 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.ph-field--color .ph-swatch-picker {
+  min-height: 0;
+}

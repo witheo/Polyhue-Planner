@@ -8,6 +8,7 @@ import { backlogTaskIdsInStoreOrder } from '../domain/reorderBacklogTasks';
 import type { TaskId } from '../domain/types';
 import { usePlannerStore } from '../state/store';
 import { BrainDumpImportDialog } from './BrainDumpImportDialog';
+import { ColorSwatchPicker } from './ColorSwatchPicker';
 import { DurationPicker } from './DurationPicker';
 import { TaskCard } from './TaskCard';
 
@@ -29,6 +30,7 @@ export function Backlog() {
 
   const [title, setTitle] = useState('');
   const [durationInput, setDurationInput] = useState('30');
+  const [color, setColor] = useState<string | null>(null);
   const [brainDumpOpen, setBrainDumpOpen] = useState(false);
 
   const sortableItems = useMemo(() => tasks.map((t) => draggableTaskId(t.id)), [tasks]);
@@ -65,8 +67,9 @@ export function Backlog() {
         onSubmit={(e) => {
           e.preventDefault();
           const minutes = minutesFromDurationInput(durationInput, 30);
-          addTask({ title, durationMinutes: minutes });
+          addTask({ title, durationMinutes: minutes, color: color ?? undefined });
           setTitle('');
+          setColor(null);
           setDurationInput('30');
         }}
       >
@@ -82,6 +85,10 @@ export function Backlog() {
           />
         </label>
         <DurationPicker id="task-duration" value={durationInput} onChange={setDurationInput} />
+        <div className="ph-field ph-field--color">
+          <span className="ph-field__label">Color</span>
+          <ColorSwatchPicker value={color} onChange={setColor} label="New task color" />
+        </div>
         <button type="submit" className="ph-btn ph-btn--primary">
           Add
         </button>
