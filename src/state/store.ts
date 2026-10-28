@@ -14,7 +14,14 @@ import { mergeTasksWithBacklogOrder } from '../domain/reorderBacklogTasks';
 import { placementValidForDate, resolveDropStartForDate } from '../domain/schedule';
 import { clampBadgeSides } from '../domain/taskBadge';
 import { colorForTaskCategory } from '../domain/taskCategories';
-import type { ScheduledBlock, Task, TaskCategory, TaskId, TaskSubtask } from '../domain/types';
+import type {
+  PersistedStateV1,
+  ScheduledBlock,
+  Task,
+  TaskCategory,
+  TaskId,
+  TaskSubtask,
+} from '../domain/types';
 import { SCHEDULE_VIEW_SPAN_MINUTES, SCHEDULE_VIEW_START_MINUTE } from '../domain/time';
 import { debounce, load, save } from './persistence';
 
@@ -114,11 +121,18 @@ function pickColorForNewTask(
   return PALETTE[rotateIndex % PALETTE.length];
 }
 
-const initial = load();
-const initialBlocks = purgeBlocksOutsidePlanningWindow(normalizeLoadedBlocks(initial?.blocks));
-const initialTasks = initial?.tasks?.length
-  ? clampTaskDurations(reconcileTasks(initial.tasks as Task[], initialBlocks))
-  : [];
+/** Normalizes persisted or imported state the same way on load and on backup import. */
+function hydrate(persisted: { tasks?: unknown; blocks?: unknown } | null): {
+  tasks: Task[];
+  blocks: ScheduledBlock[];
+} {
+  const blocks = purgeBlocksOutsidePlanningWindow(normalizeLoadedBlocks(persisted?.blocks));
+  const rawTasks = Array.isArray(persisted?.tasks) ? (persisted.tasks as Task[]) : [];
+  const tasks = rawTasks.length ? clampTaskDurations(reconcileTasks(rawTasks, blocks)) : [];
+  return { tasks, blocks };
+}
+
+const { tasks: initialTasks, blocks: initialBlocks } = hydrate(load());
 
 /** Feedback for an action that had no effect. `id` changes on every notice so repeats re-announce. */
 export type ActionNotice = { id: number; message: string };
@@ -140,6 +154,10 @@ type Store = {
   detailTaskId: TaskId | null;
   notice: ActionNotice | null;
   dismissNotice: () => void;
+  /** Shows a short message in the live notice region (e.g. a failed backup import). */
+  notify: (message: string) => void;
+  /** Replaces the whole plan (backup import); applies the same normalization as a page load. */
+  replaceState: (persisted: PersistedStateV1) => void;
   openTaskDetail: (id: TaskId) => void;
   closeTaskDetail: () => void;
   addTask: (input: {
@@ -195,6 +213,8 @@ export const usePlannerStore = create<Store>((set, get) => ({
   notice: null,
 
   dismissNotice: () => set({ notice: null }),
+  notify: (message) => set(newNotice(message)),
+  replaceState: (persisted) => set({ ...hydrate(persisted), detailTaskId: null }),
 
   openTaskDetail: (id) => {
     if (!get().tasks.some((t) => t.id === id)) return;

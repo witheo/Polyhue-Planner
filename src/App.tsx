@@ -17,6 +17,7 @@ import { getEventCoordinates } from '@dnd-kit/utilities';
 import { useRef, useState } from 'react';
 
 import { ActionNotice } from './components/ActionNotice';
+import { BackupControls } from './components/BackupControls';
 import { BACKLOG_DROP_ID, Backlog } from './components/Backlog';
 import { ScheduleLane } from './components/ScheduleLane';
 import { backlogTaskIdsInStoreOrder } from './domain/reorderBacklogTasks';
@@ -183,6 +184,7 @@ export default function App() {
               Backlog tickets + week or day schedule (Monday-first week). Drag onto a day, snap, persist.
             </p>
             </div>
+            <BackupControls />
           </header>
           <main className="ph-app__grid">
             <Backlog />

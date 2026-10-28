@@ -164,6 +164,32 @@ describe('notice', () => {
   });
 });
 
+describe('replaceState', () => {
+  it('replaces tasks and blocks and closes the detail panel', () => {
+    seed([task('old', 30)], [block('old', 300)]);
+    usePlannerStore.setState({ detailTaskId: 'old' });
+    state().replaceState({ tasks: [task('new', 60, 'backlog')], blocks: [] });
+
+    expect(state().tasks.map((t) => t.id)).toEqual(['new']);
+    expect(state().blocks).toEqual([]);
+    expect(state().detailTaskId).toBeNull();
+  });
+
+  it('normalizes like a page load: statuses follow blocks, durations clamp, stale blocks drop', () => {
+    state().replaceState({
+      tasks: [task('a', 5, 'backlog'), task('b', 30, 'scheduled')],
+      blocks: [
+        block('a', 300),
+        { taskId: 'b', startMinuteOfDay: 300, scheduledDate: '1999-01-01' },
+      ],
+    });
+
+    expect(state().blocks.map((b) => b.taskId)).toEqual(['a']);
+    expect(state().tasks.find((t) => t.id === 'a')).toMatchObject({ status: 'scheduled', durationMinutes: 15 });
+    expect(state().tasks.find((t) => t.id === 'b')!.status).toBe('backlog');
+  });
+});
+
 describe('removeTask', () => {
   it('removes the task, its block, and closes its detail panel', () => {
     seed([task('a', 30), task('b', 30)], [block('a', 300), block('b', 420)]);
