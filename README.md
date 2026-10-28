@@ -63,6 +63,14 @@ Plans are saved under the `localStorage` key `polyhue-planner.v1` as JSON:
 
 Saves are debounced (~250ms) after each change.
 
+### Backup (export / import)
+
+The header has **Export** and **Import** buttons for moving a plan between browsers or keeping a copy.
+
+- **Export** downloads `polyhue-planner-backup.json`, the same `{ "tasks": [...], "blocks": [...] }` shape as above (pretty-printed).
+- **Import** reads a `.json` file, validates it, and asks before replacing a non-empty plan. A file that is not valid JSON or has the wrong shape shows an error and leaves the current plan untouched.
+- Import normalizes like a page load: statuses follow scheduled blocks, durations below 15 minutes clamp up, and blocks outside the three-week planning window are dropped.
+
 ## Tasks and duration
 
 - Minimum task length is **15 minutes** (matches the 15-minute snap grid). Older saved tasks below that are **clamped up** on load.

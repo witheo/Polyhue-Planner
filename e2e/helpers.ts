@@ -28,4 +28,7 @@ export async function dragTo(page: Page, source: Locator, target: Locator, targe
   await page.mouse.move(from.x + 8, from.y + (to.y < from.y ? -8 : 8), { steps: 3 })
   await page.mouse.move(to.x, to.y, { steps: 20 })
   await page.mouse.up()
+  // Let the DragOverlay drop animation (220ms) and dnd-kit's post-drag click guard finish; a click
+  // issued immediately after a drop is swallowed.
+  await page.waitForTimeout(300)
 }
