@@ -36,7 +36,7 @@ The output of a spike is knowledge, so put it where the ticket lives:
 
 ## 4. Design docs
 
-Durable decisions can live in the repo. Keep exploration and status in tickets; keep the doc to what was decided and why. The intent is to maintain design docs through a docs MCP rather than ad-hoc file edits, so they stay structured (title, status, linked ticket, last updated). That MCP does not exist yet; until it does, ask before adding a design doc.
+Durable decisions can live in the repo under `docs/design/`. Keep exploration and status in tickets; the doc records what was decided and why. Maintain these docs through the `design-docs` MCP (`create_design_doc`, `update_design_doc_section`, `update_design_doc_meta`, `list_design_docs`, `validate_design_docs`) rather than ad-hoc file edits, so they keep their frontmatter (title, status, linked ticket, last updated). Link the doc from the ticket. See `docs/design/README.md`.
 
 ## 5. Parallel agents
 
