@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { localDateString } from '../domain/calendarDates';
 import { spansOverlap } from '../domain/schedule';
 import type { ScheduledBlock, Task } from '../domain/types';
-import { usePlannerStore } from './store';
+import {
+  NOTICE_DURATION_NO_FIT,
+  NOTICE_NO_FREE_SLOT,
+  NOTICE_OUTSIDE_WINDOW,
+  NOTICE_SUBTASKS_NO_FIT,
+  usePlannerStore,
+} from './store';
 
 const TODAY = localDateString(new Date());
 
@@ -16,7 +22,7 @@ function block(taskId: string, startMinuteOfDay: number): ScheduledBlock {
 }
 
 function seed(tasks: Task[], blocks: ScheduledBlock[]) {
-  usePlannerStore.setState({ tasks, blocks, detailTaskId: null });
+  usePlannerStore.setState({ tasks, blocks, detailTaskId: null, notice: null });
 }
 
 function state() {
@@ -68,6 +74,13 @@ describe('updateTaskDuration', () => {
 
     expect(state().tasks).toBe(before.tasks);
     expect(state().blocks).toBe(before.blocks);
+    expect(state().notice?.message).toBe(NOTICE_DURATION_NO_FIT);
+  });
+
+  it('does not set a notice when the change is applied', () => {
+    seed([task('a', 60), task('b', 60)], [block('a', 300), block('b', 480)]);
+    state().updateTaskDuration('a', 120);
+    expect(state().notice).toBeNull();
   });
 
   // Growing a block in a full lane currently moves it to 4:00 AM, above the visible lane
@@ -82,6 +95,72 @@ describe('updateTaskDuration', () => {
     seed([withSubtasks], []);
     state().updateTaskDuration('a', 90);
     expect(state().tasks[0]!.durationMinutes).toBe(30);
+  });
+});
+
+describe('updateTaskSubtasks', () => {
+  it('rejects the change with a notice when the rolled-up duration has no free slot', () => {
+    seed(
+      [task('a', 60), task('b', 1080), task('c', 300)],
+      [block('a', 300), block('b', 360), block('c', 0)],
+    );
+    const before = state();
+    state().updateTaskSubtasks('a', [{ label: 'big', durationMinutes: 120 }]);
+
+    expect(state().tasks).toBe(before.tasks);
+    expect(state().notice?.message).toBe(NOTICE_SUBTASKS_NO_FIT);
+  });
+});
+
+describe('dropOnSchedule', () => {
+  const rect = { top: 0, height: 1140 } as DOMRect;
+
+  it('sets a notice when there is no free slot at the drop time', () => {
+    seed(
+      [task('a', 120, 'backlog'), task('b', 1080), task('c', 300)],
+      [block('b', 360), block('c', 0)],
+    );
+    state().dropOnSchedule('a', TODAY, 400, rect);
+
+    expect(state().blocks.some((b) => b.taskId === 'a')).toBe(false);
+    expect(state().notice?.message).toBe(NOTICE_NO_FREE_SLOT);
+  });
+
+  it('sets a notice when the day is outside the planning window', () => {
+    seed([task('a', 60, 'backlog')], []);
+    state().dropOnSchedule('a', '1999-01-01', 400, rect);
+
+    expect(state().blocks).toEqual([]);
+    expect(state().notice?.message).toBe(NOTICE_OUTSIDE_WINDOW);
+  });
+
+  it('does not set a notice on a successful drop', () => {
+    seed([task('a', 60, 'backlog')], []);
+    state().dropOnSchedule('a', TODAY, 400, rect);
+
+    expect(state().blocks).toHaveLength(1);
+    expect(state().notice).toBeNull();
+  });
+});
+
+describe('notice', () => {
+  const rect = { top: 0, height: 1140 } as DOMRect;
+
+  it('gets a new id for a repeated rejection so it re-announces', () => {
+    seed([task('a', 60, 'backlog')], []);
+    state().dropOnSchedule('a', '1999-01-01', 0, rect);
+    const first = state().notice!;
+    state().dropOnSchedule('a', '1999-01-01', 0, rect);
+
+    expect(state().notice!.message).toBe(first.message);
+    expect(state().notice!.id).not.toBe(first.id);
+  });
+
+  it('dismissNotice clears it', () => {
+    seed([task('a', 60, 'backlog')], []);
+    state().dropOnSchedule('a', '1999-01-01', 0, rect);
+    state().dismissNotice();
+    expect(state().notice).toBeNull();
   });
 });
 
