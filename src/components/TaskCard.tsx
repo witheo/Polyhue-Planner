@@ -84,6 +84,11 @@ function TaskCardChrome({
       }
       style={mergedStyle}
       {...attributes}
+      // dnd-kit defaults to role="button", but the card contains its own buttons (title, reorder,
+      // remove); nested interactive roles are invalid and confuse screen readers. "group" keeps
+      // the card focusable for keyboard dragging without claiming to be a button.
+      role="group"
+      aria-pressed={undefined}
       {...listeners}
       aria-label={
         task.subtasks?.length
@@ -106,6 +111,8 @@ function TaskCardChrome({
             className="ph-card__title--ticket ph-card__title-link"
             aria-label={`Open details for ${task.title}`}
             onPointerDown={(e) => e.stopPropagation()}
+            // Keep Enter/Space on inner buttons from starting a keyboard drag on the card.
+            onKeyDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               openTaskDetail(task.id);
@@ -124,6 +131,8 @@ function TaskCardChrome({
                 aria-label={`Move ${task.title} up in backlog`}
                 disabled={!backlogReorder.canMoveUp}
                 onPointerDown={(e) => e.stopPropagation()}
+                // Keep Enter/Space on inner buttons from starting a keyboard drag on the card.
+                onKeyDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   backlogReorder.onMoveUp();
@@ -137,6 +146,8 @@ function TaskCardChrome({
                 aria-label={`Move ${task.title} down in backlog`}
                 disabled={!backlogReorder.canMoveDown}
                 onPointerDown={(e) => e.stopPropagation()}
+                // Keep Enter/Space on inner buttons from starting a keyboard drag on the card.
+                onKeyDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   backlogReorder.onMoveDown();
@@ -152,6 +163,8 @@ function TaskCardChrome({
               className="ph-icon-btn ph-icon-btn--ticket"
               aria-label={`Remove ${task.title}`}
               onPointerDown={(e) => e.stopPropagation()}
+              // Keep Enter/Space on inner buttons from starting a keyboard drag on the card.
+              onKeyDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove();

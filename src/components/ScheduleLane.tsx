@@ -387,6 +387,8 @@ export function ScheduleLane() {
         className="ph-lane__scroll"
         id="ph-schedule-panel"
         role="tabpanel"
+        // The panel scrolls, so keyboard users need to be able to focus it to scroll.
+        tabIndex={0}
         aria-labelledby={viewMode === 'week' ? 'ph-schedule-tab-week' : 'ph-schedule-tab-day'}
       >
         {viewMode === 'week' ? (
