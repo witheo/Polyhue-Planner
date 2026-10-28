@@ -51,6 +51,7 @@ npm run dev
 | `npm run build`| Typecheck + production bundle        |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint                               |
+| `npm run test:e2e` | Playwright e2e (starts its own dev server; set `E2E_PORT` to use a port other than 5173) |
 | `npm run test` | Vitest (`schedule.ts`, `laneLayout.ts`, …) |
 | `npm run dev:with-proxy` | **Vite +** brain-dump proxy (same as two terminals below) |
 | `npm run brain-dump-proxy` | `POST /brain-dump` → Cursor `@cursor/sdk` local agent + prompt (port 8787; dev only) |

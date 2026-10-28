@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 5173
+// Override with E2E_PORT so parallel runs (e.g. several worktrees) each get their own dev server
+// instead of reusing whichever one already holds the default port.
+const PORT = Number(process.env.E2E_PORT ?? 5173)
 
 export default defineConfig({
   testDir: 'e2e',
