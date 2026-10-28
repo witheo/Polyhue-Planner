@@ -14,6 +14,8 @@ export function taskCard(scope: Page | Locator, title: string) {
 
 /** Pointer drag in small steps; dnd-kit's PointerSensor needs real move events past its 6px threshold. */
 export async function dragTo(page: Page, source: Locator, target: Locator, targetOffset?: { x: number; y: number }) {
+  // The composer pushes lower backlog cards below the fold at the default 720px viewport.
+  await source.scrollIntoViewIfNeeded()
   const s = await source.boundingBox()
   const t = await target.boundingBox()
   if (!s || !t) throw new Error('drag source or target not visible')
